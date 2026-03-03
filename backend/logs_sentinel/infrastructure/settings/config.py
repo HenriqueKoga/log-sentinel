@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     enable_llm_enrichment: bool = False
+    openai_api_key: str | None = None
 
     # Plans / billing (config only)
     default_plan: Literal["monthly", "yearly", "unlimited"] = "monthly"

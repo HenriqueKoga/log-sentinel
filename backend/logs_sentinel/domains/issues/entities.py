@@ -46,6 +46,7 @@ class Issue:
     last_seen: datetime
     total_count: int
     priority_score: float
+    snoozed_until: datetime | None = None
 
     def update_on_occurrence(self, occurred_at: datetime, increment: int) -> None:
         """Update aggregate state when a new occurrence is recorded."""

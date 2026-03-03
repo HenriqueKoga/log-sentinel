@@ -113,6 +113,11 @@ class IssueService:
     async def get_issue(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
         return await self._issue_repo.get_by_id(tenant_id=tenant_id, issue_id=issue_id)
 
+    async def save_issue(self, issue: Issue) -> Issue:
+        """Persist the given issue aggregate."""
+
+        return await self._issue_repo.save(issue)
+
     async def _update_buckets(
         self,
         tenant_id: TenantId,

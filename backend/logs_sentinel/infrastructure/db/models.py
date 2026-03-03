@@ -130,6 +130,7 @@ class IssueModel(Base):
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     total_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     priority_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         UniqueConstraint(
@@ -211,6 +212,17 @@ class IssueEnrichmentModel(Base):
     suspected_cause: Mapped[str] = mapped_column(Text, nullable=False)
     checklist_json: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TenantPlanModel(Base):
+    __tablename__ = "tenant_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    plan_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 
 
 class UsageCounterModel(Base):

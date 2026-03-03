@@ -84,10 +84,13 @@ def create_app() -> FastAPI:
         allow_credentials=True,
     )
 
-    from logs_sentinel.api.v1.routers import auth, ingest, projects
+    from logs_sentinel.api.v1.routers import alerts, auth, billing, ingest, issues, projects
 
     app.include_router(auth.router, prefix="/api/v1")
     app.include_router(projects.router, prefix="/api/v1")
+    app.include_router(issues.router, prefix="/api/v1")
+    app.include_router(alerts.router, prefix="/api/v1")
+    app.include_router(billing.router, prefix="/api/v1")
     app.include_router(ingest.router, prefix="/api/v1")
 
     @app.get("/metrics")

@@ -17,8 +17,7 @@ COPY alembic ./alembic
 COPY logs_sentinel ./logs_sentinel
 COPY scripts ./scripts
 
-# Install dependencies based on pyproject; then install the app in editable mode
-RUN uv sync --no-dev && uv pip install -e .
+RUN uv sync
 
 EXPOSE 8000
 

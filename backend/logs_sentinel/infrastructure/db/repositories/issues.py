@@ -91,6 +91,7 @@ class IssueRepositorySQLAlchemy(IssueRepository):
             last_seen=model.last_seen,
             total_count=model.total_count,
             priority_score=model.priority_score,
+            snoozed_until=model.snoozed_until,
         )
 
     async def save(self, issue: Issue) -> Issue:
@@ -100,11 +101,58 @@ class IssueRepositorySQLAlchemy(IssueRepository):
         model.last_seen = issue.last_seen
         model.total_count = issue.total_count
         model.priority_score = issue.priority_score
+        model.status = issue.status.value
+        model.snoozed_until = issue.snoozed_until
         await self._session.flush()
         return issue
 
     async def list_issues(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        tenant_raw = kwargs.get("tenant_id")
+        tenant_id = int(tenant_raw) if tenant_raw is not None else 0
+        project_id_raw = kwargs.get("project_id")
+        severities = kwargs.get("severities")
+        statuses = kwargs.get("statuses")
+        since = kwargs.get("since")
+        until = kwargs.get("until")
+        limit = int(kwargs.get("limit", 50))
+        offset = int(kwargs.get("offset", 0))
+
+        stmt = IssueModel.__table__.select().where(IssueModel.tenant_id == tenant_id)
+        if project_id_raw is not None:
+            stmt = stmt.where(IssueModel.project_id == int(project_id_raw))
+        if severities:
+            stmt = stmt.where(IssueModel.severity.in_(list(severities)))
+        if statuses:
+            stmt = stmt.where(IssueModel.status.in_(list(statuses)))
+        if since is not None:
+            stmt = stmt.where(IssueModel.last_seen >= since)
+        if until is not None:
+            stmt = stmt.where(IssueModel.last_seen <= until)
+
+        stmt = stmt.order_by(IssueModel.priority_score.desc()).limit(limit).offset(offset)
+
+        result = await self._session.execute(stmt)
+        rows = result.fetchall()
+        issues: list[Issue] = []
+        for row in rows:
+            model = IssueModel(**row._mapping)
+            issues.append(
+                Issue(
+                    id=IssueId(model.id),
+                    tenant_id=TenantId(model.tenant_id),
+                    project_id=ProjectId(model.project_id),
+                    fingerprint=model.fingerprint,
+                    title=model.title,
+                    severity=IssueSeverity(model.severity),
+                    status=IssueStatus(model.status),
+                    first_seen=model.first_seen,
+                    last_seen=model.last_seen,
+                    total_count=model.total_count,
+                    priority_score=model.priority_score,
+                    snoozed_until=model.snoozed_until,
+                )
+            )
+        return issues
 
     async def get_by_id(self, tenant_id: Any, issue_id: Any) -> Issue | None:
         model = await self._session.get(IssueModel, int(issue_id))
@@ -122,6 +170,7 @@ class IssueRepositorySQLAlchemy(IssueRepository):
             last_seen=model.last_seen,
             total_count=model.total_count,
             priority_score=model.priority_score,
+            snoozed_until=model.snoozed_until,
         )
 
 

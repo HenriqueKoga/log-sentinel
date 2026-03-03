@@ -7,7 +7,12 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from logs_sentinel.domains.identity.entities import TenantId
-from logs_sentinel.domains.ingestion.entities import IngestToken, LogLevel, ProjectId
+from logs_sentinel.domains.ingestion.entities import (
+    IngestToken,
+    LogLevel,
+    ProjectId,
+    hash_ingest_token,
+)
 from logs_sentinel.domains.ingestion.normalization import (
     NormalizedLog,
     compute_fingerprint,
@@ -69,15 +74,18 @@ class IngestionService:
         rate_limiter: RateLimiter,
         queue: IngestQueue,
         per_token_limit_per_minute: int = 5_000,
+        usage_checker: Any | None = None,
     ) -> None:
         self._token_repo = token_repo
         self._log_repo = log_repo
         self._rate_limiter = rate_limiter
         self._queue = queue
         self._per_token_limit_per_minute = per_token_limit_per_minute
+        self._usage_checker = usage_checker
 
-    async def resolve_token(self, token_hash: str) -> IngestToken:
-        token = await self._token_repo.get_by_token_hash(token_hash)
+    async def resolve_token(self, token_value: str) -> IngestToken:
+        hashed = hash_ingest_token(token_value)
+        token = await self._token_repo.get_by_token_hash(hashed)
         if not token or not token.is_active:
             raise ValueError("INGEST_INVALID_TOKEN")
         await self._token_repo.touch_last_used(token.id)
@@ -92,6 +100,13 @@ class IngestionService:
 
         if not events:
             raise ValueError("INGEST_EMPTY_BATCH")
+
+        # Enforce plan usage caps if configured.
+        if self._usage_checker is not None:
+            await self._usage_checker.check_and_increment(
+                tenant_id=token.tenant_id,
+                events=len(events),
+            )
 
         rl_key = f"ingest:{int(token.id)}"
         allowed = await self._rate_limiter.check_and_increment(
