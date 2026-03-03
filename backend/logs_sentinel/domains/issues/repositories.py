@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Protocol, Sequence
+
+from .entities import Issue, IssueId, IssueOccurrenceBucket
+from logs_sentinel.domains.identity.entities import TenantId
+from logs_sentinel.domains.ingestion.entities import ProjectId
+
+
+class IssueRepository(Protocol):
+    """Repository for issue aggregates."""
+
+    async def get_by_fingerprint(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId,
+        fingerprint: str,
+    ) -> Issue | None:
+        ...
+
+    async def create_issue(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId,
+        fingerprint: str,
+        title: str,
+        severity: str,
+        occurred_at: datetime,
+    ) -> Issue:
+        ...
+
+    async def save(self, issue: Issue) -> Issue:
+        ...
+
+    async def list_issues(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId | None,
+        severities: Sequence[str] | None,
+        statuses: Sequence[str] | None,
+        since: datetime | None,
+        until: datetime | None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Sequence[Issue]:
+        ...
+
+    async def get_by_id(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
+        ...
+
+
+class IssueOccurrencesRepository(Protocol):
+    """Repository for issue occurrence buckets."""
+
+    async def upsert_bucket(
+        self,
+        tenant_id: TenantId,
+        issue_id: IssueId,
+        bucket_start: datetime,
+        bucket_minutes: int,
+        increment: int,
+    ) -> None:
+        ...
+
+    async def list_buckets(
+        self,
+        tenant_id: TenantId,
+        issue_id: IssueId,
+        bucket_minutes: int,
+        since: datetime,
+        until: datetime,
+    ) -> Sequence[IssueOccurrenceBucket]:
+        ...
+
