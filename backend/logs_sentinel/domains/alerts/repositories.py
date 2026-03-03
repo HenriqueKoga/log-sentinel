@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Protocol, Sequence
+from typing import Protocol
 
-from .entities import AlertEvent, AlertRule, AlertRuleId, NotificationChannel
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
 from logs_sentinel.domains.issues.entities import IssueId
+
+from .entities import AlertEvent, AlertRule, AlertRuleId, NotificationChannel
 
 
 class AlertRuleRepository(Protocol):

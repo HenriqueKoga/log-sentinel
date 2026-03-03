@@ -4,6 +4,7 @@ from typing import Annotated
 
 from argon2 import PasswordHasher
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.api.v1.schemas.auth import (
     ErrorResponse,
@@ -29,8 +30,6 @@ from logs_sentinel.infrastructure.db.repositories.identity import (
     UserRepositorySQLAlchemy,
 )
 from logs_sentinel.infrastructure.settings.config import settings
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

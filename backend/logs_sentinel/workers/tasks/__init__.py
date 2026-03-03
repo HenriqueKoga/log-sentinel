@@ -8,7 +8,7 @@ from logs_sentinel.domains.ingestion.entities import ProjectId
 from logs_sentinel.domains.issues.entities import IssueSeverity
 from logs_sentinel.domains.issues.repositories import IssueOccurrencesRepository, IssueRepository
 from logs_sentinel.infrastructure.db.base import SessionFactory
-from logs_sentinel.infrastructure.db.models import IssueModel, IssueOccurrenceModel, LogEventModel
+from logs_sentinel.infrastructure.db.models import IssueModel, IssueOccurrenceModel
 
 
 class IssueRepositorySQLAlchemy(IssueRepository):

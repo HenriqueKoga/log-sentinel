@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Protocol, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from logs_sentinel.domains.alerts.entities import AlertEvent, AlertKind, AlertRule
 from logs_sentinel.domains.alerts.repositories import (
@@ -49,7 +50,7 @@ class AlertsService:
         """Evaluate alert rules and create events for those that fire."""
 
         if now is None:
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
 
         rules = await self._rules.list_rules(tenant_id=tenant_id, project_id=project_id)
         fired_events: list[AlertEvent] = []

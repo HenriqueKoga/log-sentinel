@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection, engine_from_config
+from sqlalchemy.engine import engine_from_config
 
+from alembic import context
 from logs_sentinel.infrastructure.db.base import Base
 
 config = context.config

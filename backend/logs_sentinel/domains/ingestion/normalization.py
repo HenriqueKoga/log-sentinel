@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Sequence
-
 
 _UUID_RE = re.compile(
     r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"
@@ -14,7 +13,7 @@ _TIMESTAMP_RE = re.compile(
 )
 _NUMBER_RE = re.compile(r"\b\d+\b")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-_PATH_RE = re.compile(r"(/[^\\s]+)+")
+_PATH_RE = re.compile(r"(/[^\s]+)+")
 
 
 @dataclass(slots=True)

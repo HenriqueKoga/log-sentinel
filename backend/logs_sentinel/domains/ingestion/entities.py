@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, NewType
 
 from logs_sentinel.domains.identity.entities import TenantId
@@ -12,7 +12,7 @@ IngestTokenId = NewType("IngestTokenId", int)
 LogEventId = NewType("LogEventId", int)
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     """Log severity levels supported by ingestion."""
 
     DEBUG = "debug"

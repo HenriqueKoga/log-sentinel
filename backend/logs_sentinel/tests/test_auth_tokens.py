@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -39,7 +39,7 @@ class InMemoryTenantRepo(TenantRepository):
         t = Tenant(
             id=TenantId(tid),
             name=name,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         )
         self._tenants[tid] = t
         return t
@@ -66,7 +66,7 @@ class InMemoryUserRepo(UserRepository):
             email=email,
             password_hash=password_hash,
             is_active=True,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         )
         self._users[uid] = user
         self._by_email[email] = uid

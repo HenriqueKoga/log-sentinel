@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Sequence
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from logs_sentinel.domains.ai.entities import IssueEnrichment, LLMClientProtocol
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.issues.entities import IssueId
-from logs_sentinel.infrastructure.settings.config import settings
 
 
 class NullLLMClient(LLMClientProtocol):
@@ -29,6 +28,6 @@ class NullLLMClient(LLMClientProtocol):
                 "Inspect related logs around the spike.",
                 "Verify configuration and environment variables.",
             ],
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         )
 

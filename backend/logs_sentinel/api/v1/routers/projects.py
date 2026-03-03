@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from secrets import token_urlsafe
-from typing import Annotated, Sequence
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,6 @@ from logs_sentinel.domains.ingestion.entities import IngestToken, Project, Proje
 from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, ProjectRepository
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import IngestTokenModel, ProjectModel
-
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -46,7 +46,7 @@ class ProjectRepositorySQLAlchemy(ProjectRepository):
         return projects
 
     async def create_project(self, tenant_id: TenantId, name: str) -> Project:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         model = ProjectModel(tenant_id=int(tenant_id), name=name, created_at=now)
         self._session.add(model)
         await self._session.flush()
@@ -122,7 +122,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
         model = await self._session.get(IngestTokenModel, token_id)
         if model is None or model.tenant_id != int(tenant_id):
             return
-        model.revoked_at = datetime.now(tz=timezone.utc)
+        model.revoked_at = datetime.now(tz=UTC)
         await self._session.flush()
 
     async def get_by_token_hash(self, token_hash: str) -> IngestToken | None:
@@ -146,7 +146,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
         model = await self._session.get(IngestTokenModel, token_id)
         if model is None:
             return
-        model.last_used_at = datetime.now(tz=timezone.utc)
+        model.last_used_at = datetime.now(tz=UTC)
         await self._session.flush()
 
 

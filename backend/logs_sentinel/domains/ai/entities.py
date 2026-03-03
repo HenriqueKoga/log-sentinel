@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import NewType, Sequence
+from typing import NewType
 
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.issues.entities import IssueId

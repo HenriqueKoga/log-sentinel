@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -17,7 +17,7 @@ class JWTEncoderImpl:
         self._algorithm = algorithm
 
     def encode(self, payload: dict[str, Any], expires_delta: timedelta) -> str:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         exp = now + expires_delta
         to_encode = {**payload, "exp": exp}
         return jwt.encode(to_encode, self._secret_key, algorithm=self._algorithm)
@@ -33,7 +33,7 @@ class RedisRefreshTokenStore(RefreshTokenStore):
         self._redis = redis_client
 
     async def store_refresh_token(self, token_id: str, user_id: int, expires_at: int) -> None:
-        ttl = expires_at - int(datetime.now(tz=timezone.utc).timestamp())
+        ttl = expires_at - int(datetime.now(tz=UTC).timestamp())
         if ttl <= 0:
             ttl = 1
         key = self._key(token_id)
