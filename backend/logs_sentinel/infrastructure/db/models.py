@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -112,7 +113,7 @@ class LogEventModel(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     exception_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
-    raw_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    raw_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class IssueModel(Base):
@@ -184,7 +185,7 @@ class NotificationChannelModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
-    config_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
@@ -196,7 +197,7 @@ class AlertEventModel(Base):
     issue_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     rule_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class IssueEnrichmentModel(Base):

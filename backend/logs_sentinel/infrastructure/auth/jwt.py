@@ -29,7 +29,7 @@ class JWTEncoderImpl:
 class RedisRefreshTokenStore(RefreshTokenStore):
     """Refresh token store backed by Redis string keys."""
 
-    def __init__(self, redis_client) -> None:
+    def __init__(self, redis_client: Any) -> None:
         self._redis = redis_client
 
     async def store_refresh_token(self, token_id: str, user_id: int, expires_at: int) -> None:

@@ -67,7 +67,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return cached application settings instance."""
 
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
 
 
 settings = get_settings()

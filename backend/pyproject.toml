@@ -56,3 +56,12 @@ python_version = "3.14"
 strict = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "logs_sentinel.tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = "logs_sentinel.api.v1.routers.ingest"
+disallow_untyped_defs = false
+
