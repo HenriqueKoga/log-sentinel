@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -106,10 +106,10 @@ async def test_issue_upsert_and_priority() -> None:
 
     tenant_id = TenantId(1)
     project_id = ProjectId(1)
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     inp = NewOccurrenceInput(
-        message="Error processing request",
+        message="Error processing request for user 1",
         exception_type="ValueError",
         stacktrace="trace",
         severity=IssueSeverity.HIGH,

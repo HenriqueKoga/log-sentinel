@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from asyncio import TaskGroup
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Protocol, Sequence
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 from logs_sentinel.domains.identity.entities import TenantId
-from logs_sentinel.domains.ingestion.entities import IngestToken, LogEvent, LogLevel, ProjectId
-from logs_sentinel.domains.ingestion.normalization import NormalizedLog, compute_fingerprint, normalize_message
+from logs_sentinel.domains.ingestion.entities import IngestToken, LogLevel, ProjectId
+from logs_sentinel.domains.ingestion.normalization import (
+    NormalizedLog,
+    compute_fingerprint,
+    normalize_message,
+)
 from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, LogEventRepository
 
 
@@ -97,7 +102,7 @@ class IngestionService:
         if not allowed:
             raise ValueError("INGEST_RATE_LIMITED")
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         # Normalize and compute fingerprints concurrently for validation only.
         async with TaskGroup() as tg:
             tasks = [

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +51,7 @@ class TenantRepositorySQLAlchemy(TenantRepository):
         )
 
     async def create(self, name: str) -> Tenant:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         model = TenantModel(name=name, created_at=now)
         self._session.add(model)
         await self._session.flush()
@@ -91,7 +91,7 @@ class UserRepositorySQLAlchemy(UserRepository):
         )
 
     async def create(self, email: str, password_hash: str) -> User:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         model = UserModel(
             email=email,
             password_hash=password_hash,

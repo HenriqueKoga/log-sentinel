@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.api.v1.schemas.ingest import IngestBatchRequest, IngestBatchResponse
 from logs_sentinel.application.services.ingestion_service import (
@@ -19,8 +20,6 @@ from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import IngestTokenModel, LogEventModel
 from logs_sentinel.infrastructure.messaging.celery_app import celery_app
 from logs_sentinel.infrastructure.settings.config import settings
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
@@ -57,8 +56,8 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
         if row is None:
             return None
         model: IngestTokenModel = IngestTokenModel(**row._mapping)
-        from logs_sentinel.domains.ingestion.entities import IngestToken, ProjectId
         from logs_sentinel.domains.identity.entities import TenantId
+        from logs_sentinel.domains.ingestion.entities import IngestToken, ProjectId
 
         return IngestToken(
             id=model.id,
@@ -75,7 +74,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
             return
         import datetime as _dt
 
-        model.last_used_at = _dt.datetime.now(tz=_dt.timezone.utc)
+        model.last_used_at = _dt.datetime.now(tz=_dt.UTC)
         await self._session.flush()
 
 

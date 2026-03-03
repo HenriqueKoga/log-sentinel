@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from datetime import UTC, datetime, timedelta
 
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
@@ -137,7 +137,7 @@ class IssueService:
         now: datetime | None = None,
     ) -> int:
         if now is None:
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
         since = now - timedelta(hours=1)
         buckets = await self._buckets_repo.list_buckets(
             tenant_id=tenant_id,

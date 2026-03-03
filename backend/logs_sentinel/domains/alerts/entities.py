@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, NewType
 
 from logs_sentinel.domains.identity.entities import TenantId
@@ -14,7 +14,7 @@ NotificationChannelId = NewType("NotificationChannelId", int)
 AlertEventId = NewType("AlertEventId", int)
 
 
-class AlertKind(str, Enum):
+class AlertKind(StrEnum):
     """Kinds of alert rules supported."""
 
     COUNT_5M = "count_5m"
@@ -34,7 +34,7 @@ class AlertRule:
     enabled: bool
 
 
-class NotificationChannelKind(str, Enum):
+class NotificationChannelKind(StrEnum):
     """Supported notification channel types."""
 
     SLACK_WEBHOOK = "slack_webhook"

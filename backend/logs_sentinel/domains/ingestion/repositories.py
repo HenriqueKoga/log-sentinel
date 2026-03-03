@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Protocol, Sequence
+from collections.abc import Sequence
+from typing import Protocol
+
+from logs_sentinel.domains.identity.entities import TenantId
 
 from .entities import IngestToken, IngestTokenId, LogEvent, LogEventId, Project, ProjectId
-from logs_sentinel.domains.identity.entities import TenantId
 
 
 class ProjectRepository(Protocol):

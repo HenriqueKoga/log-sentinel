@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Protocol, Sequence
+from typing import Protocol
 
-from .entities import Issue, IssueId, IssueOccurrenceBucket
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
+
+from .entities import Issue, IssueId, IssueOccurrenceBucket
 
 
 class IssueRepository(Protocol):

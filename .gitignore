@@ -1,0 +1,53 @@
+### General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+.npm/
+.npmrc.local
+.pnp.*
+.yarn/
+.yarn-integrity
+.eslintcache
+.prettiercache
+uv_cache/
+.pip-cache/
+
+### Python / Backend
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+.venv/
+backend/.venv/
+.mypy_cache/
+backend/.mypy_cache/
+.ruff_cache/
+backend/.ruff_cache/
+.pytest_cache/
+backend/.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+### Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+*.tsbuildinfo
+
+### Environment / Local config
+.env
+.env.local
+backend/.env
+frontend/.env
+
+### IDE / Editor
+.idea/
+.vscode/
+*.code-workspace
+

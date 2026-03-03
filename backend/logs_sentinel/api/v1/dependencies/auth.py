@@ -21,7 +21,6 @@ from logs_sentinel.infrastructure.auth.jwt import JWTEncoderImpl, create_jwt_enc
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import MembershipModel, TenantModel, UserModel
 
-
 security_scheme = HTTPBearer(auto_error=False)
 
 

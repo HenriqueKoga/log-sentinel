@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from logs_sentinel.domains.identity.entities import Tenant, TenantId, User, UserId
-from logs_sentinel.infrastructure.db.base import Base, engine
+from logs_sentinel.infrastructure.db.base import Base
+
+try:
+    import aiosqlite  # type: ignore[import-not-found]  # noqa: F401
+
+    HAS_AIOSQLITE = True
+except ModuleNotFoundError:
+    HAS_AIOSQLITE = False
 from logs_sentinel.infrastructure.db.models import MembershipModel, TenantModel, UserModel
 from logs_sentinel.infrastructure.db.repositories.identity import (
     MembershipRepositorySQLAlchemy,
@@ -17,12 +24,17 @@ from logs_sentinel.infrastructure.db.repositories.identity import (
 
 @pytest.mark.asyncio
 async def test_membership_repository_respects_tenant_isolation() -> None:
-    async with engine.begin() as conn:
+    if not HAS_AIOSQLITE:
+        pytest.skip("aiosqlite not available; skipping tenant isolation test")
+
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    async with AsyncSession(engine, expire_on_commit=False) as session:
+    async with AsyncSession(test_engine, expire_on_commit=False) as session:
         # Create two tenants and one user, but only one membership
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         t1 = TenantModel(name="T1", created_at=now)
         t2 = TenantModel(name="T2", created_at=now)
         u1 = UserModel(

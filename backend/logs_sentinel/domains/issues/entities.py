@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from math import log1p
 from typing import NewType
 
@@ -13,7 +13,7 @@ IssueId = NewType("IssueId", int)
 IssueOccurrenceId = NewType("IssueOccurrenceId", int)
 
 
-class IssueSeverity(str, Enum):
+class IssueSeverity(StrEnum):
     """Severity levels for issues."""
 
     LOW = "low"
@@ -22,7 +22,7 @@ class IssueSeverity(str, Enum):
     CRITICAL = "critical"
 
 
-class IssueStatus(str, Enum):
+class IssueStatus(StrEnum):
     """Lifecycle state of an issue."""
 
     OPEN = "open"

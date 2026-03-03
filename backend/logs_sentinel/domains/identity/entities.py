@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import NewType
 
 TenantId = NewType("TenantId", int)
@@ -10,7 +10,7 @@ UserId = NewType("UserId", int)
 MembershipId = NewType("MembershipId", int)
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     """RBAC roles within a tenant."""
 
     OWNER = "owner"

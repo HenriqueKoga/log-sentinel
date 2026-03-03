@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from argon2 import PasswordHasher
 
@@ -21,7 +21,7 @@ async def main() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionFactory() as session:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         tenant = TenantModel(name="Acme Logs", created_at=now)
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from argon2 import PasswordHasher
@@ -93,7 +93,7 @@ class AuthService:
         await self._refresh_store.revoke_refresh_token(refresh_token_id)
 
     async def _issue_tokens(self, auth_user: AuthenticatedUser) -> AuthTokens:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         access_exp = timedelta(minutes=settings.access_token_exp_minutes)
         refresh_exp = timedelta(days=settings.refresh_token_exp_days)
 
