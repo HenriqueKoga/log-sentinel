@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from logs_sentinel.domains.ai.entities import IssueEnrichment, LLMClientProtocol
+from logs_sentinel.domains.ai.entities import IssueEnrichment, IssueEnrichmentId, LLMClientProtocol
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.issues.entities import IssueId
 
@@ -17,7 +17,7 @@ class NullLLMClient(LLMClientProtocol):
         # For the null client, we do not know tenant or issue ids; the caller is expected
         # to persist the enrichment with correct identifiers if needed.
         return IssueEnrichment(
-            id=-1,  # placeholder, will be replaced by persistence layer
+            id=IssueEnrichmentId(-1),  # placeholder, will be replaced by persistence layer
             tenant_id=TenantId(-1),
             issue_id=IssueId(-1),
             model_name="null-llm",

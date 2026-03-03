@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from logs_sentinel.application.services.ingestion_service import (
     IngestEventInput,
     IngestionService,
 )
+from logs_sentinel.domains.ingestion.entities import LogEventId
 from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, LogEventRepository
 from logs_sentinel.infrastructure.cache.redis_rate_limiter import (
     RedisRateLimiter,
@@ -28,27 +29,27 @@ class LogEventRepositorySQLAlchemy(LogEventRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create_many(self, events):
+    async def create_many(self, events: Any) -> list[LogEventId]:
         models = [LogEventModel(**event) for event in events]
         self._session.add_all(models)
         await self._session.flush()
-        return [m.id for m in models]
+        return [LogEventId(m.id) for m in models]
 
 
 class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_tokens(self, tenant_id, project_id):
+    async def list_tokens(self, tenant_id: Any, project_id: Any) -> Any:
         raise NotImplementedError
 
-    async def create_token(self, tenant_id, project_id, token_hash):
+    async def create_token(self, tenant_id: Any, project_id: Any, token_hash: str) -> Any:
         raise NotImplementedError
 
-    async def revoke_token(self, tenant_id, token_id):
+    async def revoke_token(self, tenant_id: Any, token_id: Any) -> None:
         raise NotImplementedError
 
-    async def get_by_token_hash(self, token_hash):
+    async def get_by_token_hash(self, token_hash: str) -> Any:
         result = await self._session.execute(
             IngestTokenModel.__table__.select().where(IngestTokenModel.token_hash == token_hash)
         )
@@ -57,10 +58,10 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
             return None
         model: IngestTokenModel = IngestTokenModel(**row._mapping)
         from logs_sentinel.domains.identity.entities import TenantId
-        from logs_sentinel.domains.ingestion.entities import IngestToken, ProjectId
+        from logs_sentinel.domains.ingestion.entities import IngestToken, IngestTokenId, ProjectId
 
         return IngestToken(
-            id=model.id,
+            id=IngestTokenId(model.id),
             tenant_id=TenantId(model.tenant_id),
             project_id=ProjectId(model.project_id),
             token_hash=model.token_hash,
@@ -68,7 +69,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
             revoked_at=model.revoked_at,
         )
 
-    async def touch_last_used(self, token_id):
+    async def touch_last_used(self, token_id: Any) -> None:
         model = await self._session.get(IngestTokenModel, token_id)
         if model is None:
             return
@@ -79,7 +80,9 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
 
 
 class CeleryIngestQueue:
-    async def enqueue_batch(self, tenant_id, project_id, token_id, events):
+    async def enqueue_batch(
+        self, tenant_id: Any, project_id: Any, token_id: Any, events: Any
+    ) -> str:
         result = celery_app.send_task(
             "logs_sentinel.workers.tasks.process_ingest_batch",
             args=[

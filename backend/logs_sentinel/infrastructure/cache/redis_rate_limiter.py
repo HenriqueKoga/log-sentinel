@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import cast
 
 import redis.asyncio as redis
 
@@ -27,6 +28,6 @@ class RedisRateLimiter:
 
 def create_redis_client(url: str) -> redis.Redis:
     """Create a shared async Redis client."""
-
-    return redis.from_url(url, encoding="utf-8", decode_responses=True)
+    client = redis.from_url(url, encoding="utf-8", decode_responses=True)  # type: ignore[no-untyped-call]
+    return cast(redis.Redis, client)
 

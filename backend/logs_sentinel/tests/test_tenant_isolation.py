@@ -9,7 +9,7 @@ from logs_sentinel.domains.identity.entities import Tenant, TenantId, User, User
 from logs_sentinel.infrastructure.db.base import Base
 
 try:
-    import aiosqlite  # type: ignore[import-not-found]  # noqa: F401
+    import aiosqlite  # noqa: F401
 
     HAS_AIOSQLITE = True
 except ModuleNotFoundError:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 
 from logs_sentinel.domains.alerts.entities import AlertEvent, AlertKind, AlertRule
 from logs_sentinel.domains.alerts.repositories import (
@@ -75,7 +75,7 @@ class AlertsService:
                 issue_id=issue.id,
                 rule_id=rule.id,
                 triggered_at=now,
-                payload_json=payload,
+                payload_json=cast("dict[str, object]", payload),
             )
             fired_events.append(event)
             await self._sender.send_alert(tenant_id=tenant_id, rule=rule, issue=issue)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import structlog
@@ -24,7 +24,11 @@ REQUEST_LATENCY = Histogram(
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Basic Prometheus metrics middleware."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         method = request.method
         path = request.url.path
         with REQUEST_LATENCY.labels(method=method, path=path).time():
@@ -35,8 +39,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
 async def metrics_endpoint() -> Response:
     """Expose Prometheus metrics."""
-
-    content = generate_latest()
+    content: bytes = generate_latest()
     return Response(content=content, media_type="text/plain; version=0.0.4")
 
 

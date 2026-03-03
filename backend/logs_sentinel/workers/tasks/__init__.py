@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from celery import shared_task
 
 from logs_sentinel.application.services.issue_service import IssueService, NewOccurrenceInput
@@ -12,10 +14,12 @@ from logs_sentinel.infrastructure.db.models import IssueModel, IssueOccurrenceMo
 
 
 class IssueRepositorySQLAlchemy(IssueRepository):
-    def __init__(self, session):
+    def __init__(self, session: Any) -> None:
         self._session = session
 
-    async def get_by_fingerprint(self, tenant_id, project_id, fingerprint):
+    async def get_by_fingerprint(
+        self, tenant_id: Any, project_id: Any, fingerprint: str
+    ) -> Any:
         stmt = IssueModel.__table__.select().where(
             IssueModel.tenant_id == int(tenant_id),
             IssueModel.project_id == int(project_id),
@@ -42,7 +46,15 @@ class IssueRepositorySQLAlchemy(IssueRepository):
             priority_score=model.priority_score,
         )
 
-    async def create_issue(self, tenant_id, project_id, fingerprint, title, severity, occurred_at):
+    async def create_issue(
+        self,
+        tenant_id: Any,
+        project_id: Any,
+        fingerprint: str,
+        title: str,
+        severity: str,
+        occurred_at: Any,
+    ) -> Any:
         model = IssueModel(
             tenant_id=int(tenant_id),
             project_id=int(project_id),
@@ -73,7 +85,7 @@ class IssueRepositorySQLAlchemy(IssueRepository):
             priority_score=model.priority_score,
         )
 
-    async def save(self, issue):
+    async def save(self, issue: Any) -> Any:
         model = await self._session.get(IssueModel, int(issue.id))
         if model is None:
             raise RuntimeError("ISSUE_NOT_FOUND")
@@ -83,10 +95,10 @@ class IssueRepositorySQLAlchemy(IssueRepository):
         await self._session.flush()
         return issue
 
-    async def list_issues(self, *args, **kwargs):
+    async def list_issues(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
-    async def get_by_id(self, tenant_id, issue_id):
+    async def get_by_id(self, tenant_id: Any, issue_id: Any) -> Any:
         model = await self._session.get(IssueModel, int(issue_id))
         if model is None or model.tenant_id != int(tenant_id):
             return None
@@ -108,10 +120,17 @@ class IssueRepositorySQLAlchemy(IssueRepository):
 
 
 class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
-    def __init__(self, session):
+    def __init__(self, session: Any) -> None:
         self._session = session
 
-    async def upsert_bucket(self, tenant_id, issue_id, bucket_start, bucket_minutes, increment):
+    async def upsert_bucket(
+        self,
+        tenant_id: Any,
+        issue_id: Any,
+        bucket_start: Any,
+        bucket_minutes: int,
+        increment: int,
+    ) -> None:
         stmt = IssueOccurrenceModel.__table__.select().where(
             IssueOccurrenceModel.tenant_id == int(tenant_id),
             IssueOccurrenceModel.issue_id == int(issue_id),
@@ -134,7 +153,14 @@ class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
             model.count += increment
         await self._session.flush()
 
-    async def list_buckets(self, tenant_id, issue_id, bucket_minutes, since, until):
+    async def list_buckets(
+        self,
+        tenant_id: Any,
+        issue_id: Any,
+        bucket_minutes: int,
+        since: Any,
+        until: Any,
+    ) -> Any:
         stmt = IssueOccurrenceModel.__table__.select().where(
             IssueOccurrenceModel.tenant_id == int(tenant_id),
             IssueOccurrenceModel.issue_id == int(issue_id),
@@ -144,7 +170,11 @@ class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
         )
         result = await self._session.execute(stmt)
         rows = result.fetchall()
-        from logs_sentinel.domains.issues.entities import IssueOccurrenceBucket, IssueOccurrenceId
+        from logs_sentinel.domains.issues.entities import (
+            IssueId,
+            IssueOccurrenceBucket,
+            IssueOccurrenceId,
+        )
 
         buckets: list[IssueOccurrenceBucket] = []
         for row in rows:
@@ -153,7 +183,7 @@ class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
                 IssueOccurrenceBucket(
                     id=IssueOccurrenceId(model.id),
                     tenant_id=TenantId(model.tenant_id),
-                    issue_id=model.issue_id,
+                    issue_id=IssueId(model.issue_id),
                     bucket_start=model.bucket_start,
                     bucket_minutes=model.bucket_minutes,
                     count=model.count,
@@ -162,8 +192,8 @@ class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
         return buckets
 
 
-@shared_task(name="logs_sentinel.workers.tasks.process_ingest_batch")
-def process_ingest_batch(payload: dict) -> None:
+@shared_task(name="logs_sentinel.workers.tasks.process_ingest_batch")  # type: ignore[untyped-decorator]
+def process_ingest_batch(payload: dict[str, Any]) -> None:
     """Celery task: process an ingestion batch into issues and buckets."""
 
     import asyncio

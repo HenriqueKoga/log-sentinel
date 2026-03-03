@@ -15,7 +15,7 @@ from logs_sentinel.api.v1.schemas.projects import (
     ProjectResponse,
 )
 from logs_sentinel.domains.identity.entities import TenantId
-from logs_sentinel.domains.ingestion.entities import IngestToken, Project, ProjectId
+from logs_sentinel.domains.ingestion.entities import IngestToken, IngestTokenId, Project, ProjectId
 from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, ProjectRepository
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import IngestTokenModel, ProjectModel
@@ -89,7 +89,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
             model: IngestTokenModel = IngestTokenModel(**row._mapping)
             tokens.append(
                 IngestToken(
-                    id=model.id,
+                    id=IngestTokenId(model.id),
                     tenant_id=TenantId(model.tenant_id),
                     project_id=ProjectId(model.project_id),
                     token_hash=model.token_hash,
@@ -110,7 +110,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
         self._session.add(model)
         await self._session.flush()
         return IngestToken(
-            id=model.id,
+            id=IngestTokenId(model.id),
             tenant_id=TenantId(model.tenant_id),
             project_id=ProjectId(model.project_id),
             token_hash=model.token_hash,
@@ -134,7 +134,7 @@ class IngestTokenRepositorySQLAlchemy(IngestTokenRepository):
             return None
         model: IngestTokenModel = IngestTokenModel(**row._mapping)
         return IngestToken(
-            id=model.id,
+            id=IngestTokenId(model.id),
             tenant_id=TenantId(model.tenant_id),
             project_id=ProjectId(model.project_id),
             token_hash=model.token_hash,

@@ -27,13 +27,13 @@ class InMemoryTenantRepo(TenantRepository):
         self._tenants: dict[int, Tenant] = {}
         self._next_id = 1
 
-    async def get_by_id(self, tenant_id: TenantId):
+    async def get_by_id(self, tenant_id: TenantId) -> Tenant | None:
         return self._tenants.get(int(tenant_id))
 
-    async def get_by_name(self, name: str):
+    async def get_by_name(self, name: str) -> Tenant | None:
         return next((t for t in self._tenants.values() if t.name == name), None)
 
-    async def create(self, name: str):
+    async def create(self, name: str) -> Tenant:
         tid = self._next_id
         self._next_id += 1
         t = Tenant(
@@ -51,14 +51,14 @@ class InMemoryUserRepo(UserRepository):
         self._by_email: dict[str, int] = {}
         self._next_id = 1
 
-    async def get_by_id(self, user_id: UserId):
+    async def get_by_id(self, user_id: UserId) -> User | None:
         return self._users.get(int(user_id))
 
-    async def get_by_email(self, email: str):
+    async def get_by_email(self, email: str) -> User | None:
         uid = self._by_email.get(email)
         return self._users.get(uid) if uid is not None else None
 
-    async def create(self, email: str, password_hash: str):
+    async def create(self, email: str, password_hash: str) -> User:
         uid = self._next_id
         self._next_id += 1
         user = User(
@@ -77,10 +77,10 @@ class InMemoryMembershipRepo(MembershipRepository):
     def __init__(self) -> None:
         self._primary: dict[int, AuthenticatedUser] = {}
 
-    async def get_primary_membership(self, user_id: UserId):
+    async def get_primary_membership(self, user_id: UserId) -> AuthenticatedUser | None:
         return self._primary.get(int(user_id))
 
-    async def add_membership(self, tenant: Tenant, user: User, role: str):
+    async def add_membership(self, tenant: Tenant, user: User, role: str) -> AuthenticatedUser:
         auth = AuthenticatedUser(user=user, tenant=tenant, role=Role(role))
         self._primary[int(user.id)] = auth
         return auth
@@ -101,7 +101,7 @@ class InMemoryRefreshStore(RefreshTokenStore):
 
 
 class DummyJWTEncoder:
-    def encode(self, payload, expires_delta: timedelta) -> str:  # type: ignore[override]
+    def encode(self, payload: dict[str, object], expires_delta: timedelta) -> str:
         return f"jwt-{payload['type']}-{payload['sub']}"
 
 

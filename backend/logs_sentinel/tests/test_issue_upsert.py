@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -17,10 +18,20 @@ class InMemoryIssueRepo(IssueRepository):
         self._by_fp: dict[tuple[int, int, str], Issue] = {}
         self._next_id = 1
 
-    async def get_by_fingerprint(self, tenant_id, project_id, fingerprint):
+    async def get_by_fingerprint(
+        self, tenant_id: Any, project_id: Any, fingerprint: str
+    ) -> Issue | None:
         return self._by_fp.get((int(tenant_id), int(project_id), fingerprint))
 
-    async def create_issue(self, tenant_id, project_id, fingerprint, title, severity, occurred_at):
+    async def create_issue(
+        self,
+        tenant_id: Any,
+        project_id: Any,
+        fingerprint: str,
+        title: str,
+        severity: str,
+        occurred_at: Any,
+    ) -> Issue:
         issue = Issue(
             id=IssueId(self._next_id),
             tenant_id=TenantId(int(tenant_id)),
@@ -39,22 +50,29 @@ class InMemoryIssueRepo(IssueRepository):
         self._by_fp[(int(tenant_id), int(project_id), fingerprint)] = issue
         return issue
 
-    async def save(self, issue):
+    async def save(self, issue: Issue) -> Issue:
         self._by_id[int(issue.id)] = issue
         return issue
 
-    async def list_issues(self, *args, **kwargs):
+    async def list_issues(self, *args: Any, **kwargs: Any) -> list[Issue]:
         return list(self._by_id.values())
 
-    async def get_by_id(self, tenant_id, issue_id):
+    async def get_by_id(self, tenant_id: Any, issue_id: Any) -> Issue | None:
         return self._by_id.get(int(issue_id))
 
 
 class InMemoryBucketsRepo(IssueOccurrencesRepository):
     def __init__(self) -> None:
-        self._buckets: list[dict] = []
+        self._buckets: list[dict[str, Any]] = []
 
-    async def upsert_bucket(self, tenant_id, issue_id, bucket_start, bucket_minutes, increment):
+    async def upsert_bucket(
+        self,
+        tenant_id: Any,
+        issue_id: Any,
+        bucket_start: Any,
+        bucket_minutes: int,
+        increment: int,
+    ) -> None:
         for b in self._buckets:
             if (
                 b["tenant_id"] == int(tenant_id)
@@ -74,7 +92,14 @@ class InMemoryBucketsRepo(IssueOccurrencesRepository):
             }
         )
 
-    async def list_buckets(self, tenant_id, issue_id, bucket_minutes, since, until):
+    async def list_buckets(
+        self,
+        tenant_id: Any,
+        issue_id: Any,
+        bucket_minutes: int,
+        since: Any,
+        until: Any,
+    ) -> Any:
         from logs_sentinel.domains.issues.entities import IssueOccurrenceBucket, IssueOccurrenceId
 
         out = []
