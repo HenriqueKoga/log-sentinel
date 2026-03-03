@@ -15,7 +15,7 @@ backend-test:
 	cd backend && uv run pytest
 
 backend-lint:
-	cd backend && uv run ruff check . && uv run mypy .
+	cd backend && uv run ruff check . --fix && uv run mypy .
 
 frontend-lint:
 	cd frontend && npm run lint

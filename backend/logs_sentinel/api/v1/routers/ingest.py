@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.api.v1.schemas.ingest import IngestBatchRequest, IngestBatchResponse
+from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.application.services.ingestion_service import (
     IngestBatchResult,
     IngestEventInput,
@@ -19,6 +20,10 @@ from logs_sentinel.infrastructure.cache.redis_rate_limiter import (
 )
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import IngestTokenModel, LogEventModel
+from logs_sentinel.infrastructure.db.repositories.billing import (
+    TenantPlanRepositorySQLAlchemy,
+    UsageCounterRepositorySQLAlchemy,
+)
 from logs_sentinel.infrastructure.messaging.celery_app import celery_app
 from logs_sentinel.infrastructure.settings.config import settings
 
@@ -105,11 +110,15 @@ async def get_ingestion_service(
     token_repo = IngestTokenRepositorySQLAlchemy(session)
     log_repo = LogEventRepositorySQLAlchemy(session)
     queue = CeleryIngestQueue()
+    plans_repo = TenantPlanRepositorySQLAlchemy(session)
+    usage_repo = UsageCounterRepositorySQLAlchemy(session)
+    billing = BillingService(plans_repo=plans_repo, usage_repo=usage_repo)
     return IngestionService(
         token_repo=token_repo,
         log_repo=log_repo,
         rate_limiter=rate_limiter,
         queue=queue,
+        usage_checker=billing,
     )
 
 

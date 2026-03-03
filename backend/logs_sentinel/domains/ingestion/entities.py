@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from hashlib import sha256
 from typing import Any, NewType
 
 from logs_sentinel.domains.identity.entities import TenantId
@@ -61,4 +62,11 @@ class LogEvent:
     exception_type: str | None
     stacktrace: str | None
     raw_json: dict[str, Any]
+
+
+def hash_ingest_token(raw_token: str) -> str:
+    """Return a deterministic hash for an ingest token value."""
+
+    digest = sha256(raw_token.encode("utf-8")).hexdigest()
+    return digest
 

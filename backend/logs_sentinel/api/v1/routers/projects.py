@@ -15,7 +15,13 @@ from logs_sentinel.api.v1.schemas.projects import (
     ProjectResponse,
 )
 from logs_sentinel.domains.identity.entities import TenantId
-from logs_sentinel.domains.ingestion.entities import IngestToken, IngestTokenId, Project, ProjectId
+from logs_sentinel.domains.ingestion.entities import (
+    IngestToken,
+    IngestTokenId,
+    Project,
+    ProjectId,
+    hash_ingest_token,
+)
 from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, ProjectRepository
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.infrastructure.db.models import IngestTokenModel, ProjectModel
@@ -190,15 +196,20 @@ async def list_tokens(
     repo: Annotated[IngestTokenRepository, Depends(get_token_repo)],
 ) -> list[IngestTokenResponse]:
     tokens = await repo.list_tokens(ctx.tenant_id, ProjectId(project_id))
-    return [
-        IngestTokenResponse(
-            id=int(t.id),
-            token=t.token_hash,
-            last_used_at=t.last_used_at,
-            revoked_at=t.revoked_at,
+    # For security, we never expose the stored token hash. Instead we
+    # return a placeholder token value so that clients understand the
+    # token exists but cannot retrieve it again.
+    responses: list[IngestTokenResponse] = []
+    for t in tokens:
+        responses.append(
+            IngestTokenResponse(
+                id=int(t.id),
+                token="hidden",
+                last_used_at=t.last_used_at,
+                revoked_at=t.revoked_at,
+            )
         )
-        for t in tokens
-    ]
+    return responses
 
 
 @router.post("/{project_id}/tokens", response_model=IngestTokenResponse, status_code=201)
@@ -215,11 +226,25 @@ async def create_token(
             detail={"code": "PROJECT_NOT_FOUND"},
         )
     raw_token = token_urlsafe(32)
-    token = await repo.create_token(ctx.tenant_id, ProjectId(project_id), token_hash=raw_token)
+    token_hash = hash_ingest_token(raw_token)
+    token = await repo.create_token(ctx.tenant_id, ProjectId(project_id), token_hash=token_hash)
     return IngestTokenResponse(
         id=int(token.id),
         token=raw_token,
         last_used_at=token.last_used_at,
         revoked_at=token.revoked_at,
     )
+
+
+@router.post("/{project_id}/tokens/{token_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_token(
+    project_id: int,
+    token_id: int,
+    ctx: Annotated[TenantContext, Depends(get_tenant_context)],
+    repo: Annotated[IngestTokenRepository, Depends(get_token_repo)],
+) -> None:
+    # Project_id is accepted for route structure and validation symmetry, but
+    # tenant scoping is enforced inside the repository.
+    _ = project_id
+    await repo.revoke_token(ctx.tenant_id, IngestTokenId(token_id))
 
