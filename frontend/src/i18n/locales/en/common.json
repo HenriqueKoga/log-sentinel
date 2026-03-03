@@ -1,0 +1,17 @@
+{
+  "app": {
+    "title": "LogSentinel"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "tenantName": "Organization name",
+    "submit": "Submit"
+  },
+  "dashboard": {
+    "title": "Issues dashboard"
+  }
+}
+

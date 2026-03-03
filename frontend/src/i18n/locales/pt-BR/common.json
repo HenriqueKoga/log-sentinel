@@ -1,0 +1,17 @@
+{
+  "app": {
+    "title": "LogSentinel"
+  },
+  "auth": {
+    "login": "Entrar",
+    "signup": "Criar conta",
+    "email": "E-mail",
+    "password": "Senha",
+    "tenantName": "Nome da organização",
+    "submit": "Enviar"
+  },
+  "dashboard": {
+    "title": "Painel de issues"
+  }
+}
+

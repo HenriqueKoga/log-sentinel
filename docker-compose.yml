@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: logs_sentinel
+      POSTGRES_PASSWORD: logs_sentinel
+      POSTGRES_DB: logs_sentinel
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logs_sentinel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      LOGS_SENTINEL_DB_URL: postgresql+asyncpg://logs_sentinel:logs_sentinel@postgres:5432/logs_sentinel
+      LOGS_SENTINEL_REDIS_URL: redis://redis:6379/0
+      LOGS_SENTINEL_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
+      LOGS_SENTINEL_CELERY_RESULT_BACKEND: redis://redis:6379/1
+      LOGS_SENTINEL_FRONTEND_ORIGIN: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    command: >
+      uv run uvicorn logs_sentinel.main:app
+      --host 0.0.0.0
+      --port 8000
+
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      LOGS_SENTINEL_DB_URL: postgresql+asyncpg://logs_sentinel:logs_sentinel@postgres:5432/logs_sentinel
+      LOGS_SENTINEL_REDIS_URL: redis://redis:6379/0
+      LOGS_SENTINEL_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
+      LOGS_SENTINEL_CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    command: >
+      uv run celery -A logs_sentinel.infrastructure.messaging.celery_app.celery_app
+      worker --loglevel=info
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend-api
+    ports:
+      - "5173:5173"
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+
+networks:
+  default:
+    name: logs-sentinel-net
+
