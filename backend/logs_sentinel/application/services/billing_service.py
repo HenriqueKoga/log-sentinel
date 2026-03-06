@@ -45,6 +45,16 @@ class BillingService:
             and plan.enable_llm_enrichment
         )
 
+    async def would_exceed_llm_limit(
+        self, tenant_id: TenantId, credits_per_use: int | None = None
+    ) -> bool:
+        """Return True if one more LLM use (by default credits_per_llm_enrichment) would exceed the plan limit."""
+        summary = await self.get_usage_summary(tenant_id)
+        if summary.limit is None:
+            return False
+        cost = credits_per_use if credits_per_use is not None else settings.credits_per_llm_enrichment
+        return summary.used + cost > summary.limit
+
     async def set_tenant_llm_enrichment(self, tenant_id: TenantId, enable: bool) -> None:
         """Enable or disable LLM enrichment for the tenant's active plan."""
         await self._plans.set_plan_llm_enrichment(tenant_id, enable)

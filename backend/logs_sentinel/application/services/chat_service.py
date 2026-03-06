@@ -6,12 +6,14 @@ import json
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
+from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.application.services.chat_tools_service import ChatToolsService
 from logs_sentinel.domains.chat.entities import ChatMessage, ChatSession
 from logs_sentinel.domains.chat.repositories import (
     ChatMessageRepository,
     ChatSessionRepository,
 )
+from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.infrastructure.agents.chat import ChatAgentDeps
 
 if TYPE_CHECKING:
@@ -27,7 +29,7 @@ class ChatService:
         message_repo: ChatMessageRepository,
         tools_service: ChatToolsService,
         agent: Agent[ChatAgentDeps, str],
-        billing_service: Any | None,
+        billing_service: BillingService | None,
         title_agent: Any | None = None,
     ) -> None:
         self._session_repo = session_repo
@@ -160,7 +162,6 @@ class ChatService:
         result = await self._agent.run(content, deps=deps)
         full_content = (result.output or "").strip() or "Não consegui gerar uma resposta."
         if self._billing:
-            from logs_sentinel.domains.identity.entities import TenantId
             await self._billing.record_llm_usage(TenantId(session.tenant_id))
         msg = await self._message_repo.add_message(
             session_id=session.id,
@@ -186,7 +187,6 @@ class ChatService:
                 pass
         full_content = "".join(full_content_parts).strip() or "Não consegui gerar uma resposta."
         if self._billing:
-            from logs_sentinel.domains.identity.entities import TenantId
             await self._billing.record_llm_usage(TenantId(session.tenant_id))
         assistant_msg = await self._message_repo.add_message(
             session_id=session.id,
@@ -211,7 +211,6 @@ class ChatService:
                         title=result.output.title.strip(),
                     )
                     if self._billing:
-                        from logs_sentinel.domains.identity.entities import TenantId
                         await self._billing.record_llm_usage(TenantId(session.tenant_id))
             except Exception:
                 pass
