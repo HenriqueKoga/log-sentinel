@@ -46,4 +46,3 @@ class SlackWebhookSender(NotificationSender):
             except Exception:
                 # For MVP we swallow errors; they will still be visible in logs.
                 continue
-

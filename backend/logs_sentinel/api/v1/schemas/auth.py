@@ -29,4 +29,3 @@ class TokenPairResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
-

@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:16
+    networks:
+      - default
     environment:
       POSTGRES_USER: logs_sentinel
       POSTGRES_PASSWORD: logs_sentinel
@@ -14,25 +16,41 @@ services:
       retries: 5
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    networks:
+      - default
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
+    networks:
+      - default
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   backend-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    networks:
+      - default
     env_file:
-      - ./backend/.env
+      - .env
     environment:
       LOGS_SENTINEL_DB_URL: postgresql+asyncpg://logs_sentinel:logs_sentinel@postgres:5432/logs_sentinel
       LOGS_SENTINEL_REDIS_URL: redis://redis:6379/0
@@ -43,13 +61,13 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8000:8000"
     command: >
-      uv run uvicorn logs_sentinel.main:app
+      uvicorn logs_sentinel.main:app
       --host 0.0.0.0
       --port 8000
 
@@ -57,8 +75,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    networks:
+      - default
     env_file:
-      - ./backend/.env
+      - .env
     environment:
       LOGS_SENTINEL_DB_URL: postgresql+asyncpg://logs_sentinel:logs_sentinel@postgres:5432/logs_sentinel
       LOGS_SENTINEL_REDIS_URL: redis://redis:6379/0
@@ -68,19 +88,22 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     command: >
-      uv run celery -A logs_sentinel.infrastructure.messaging.celery_app.celery_app
+      celery -A logs_sentinel.infrastructure.messaging.celery_app.celery_app
       worker --loglevel=info
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    networks:
+      - default
     environment:
       VITE_API_BASE_URL: http://localhost:8000
+      VITE_PROXY_TARGET: http://backend-api:8000
     depends_on:
       - backend-api
     ports:

@@ -6,19 +6,21 @@ from datetime import UTC, datetime
 from argon2 import PasswordHasher
 
 from logs_sentinel.domains.identity.entities import Role
-from logs_sentinel.infrastructure.db.base import Base, SessionFactory, engine
+from logs_sentinel.domains.ingestion.entities import hash_ingest_token
+from logs_sentinel.infrastructure.db.base import SessionFactory, engine
 from logs_sentinel.infrastructure.db.models import (
     IngestTokenModel,
     MembershipModel,
     ProjectModel,
     TenantModel,
     UserModel,
+    create_all_tables,
 )
 
 
 async def main() -> None:
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(create_all_tables)
 
     async with SessionFactory() as session:
         now = datetime.now(tz=UTC)
@@ -47,10 +49,11 @@ async def main() -> None:
         session.add_all([membership, project])
         await session.flush()
 
+        raw_token = "dev-token-change-me"
         token = IngestTokenModel(
             tenant_id=tenant.id,
             project_id=project.id,
-            token_hash="dev-token-change-me",
+            token_hash=hash_ingest_token(raw_token),
             last_used_at=None,
             revoked_at=None,
         )
@@ -61,9 +64,8 @@ async def main() -> None:
         print("User: owner@example.com")
         print(f"Password: {dev_password}")
         print(f"Project: Acme Backend (id={project.id})")
-        print("Ingestion token (use as X-Project-Token): dev-token-change-me")
+        print(f"Ingestion token (use as X-Project-Token): {raw_token}")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-

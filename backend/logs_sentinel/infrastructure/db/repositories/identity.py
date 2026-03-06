@@ -163,4 +163,3 @@ class MembershipRepositorySQLAlchemy(MembershipRepository):
         self._session.add(model)
         await self._session.flush()
         return AuthenticatedUser(user=user, tenant=tenant, role=Role(role))
-

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -15,6 +17,7 @@ from logs_sentinel.domains.issues.entities import (
     compute_priority_score,
 )
 from logs_sentinel.domains.issues.repositories import IssueOccurrencesRepository, IssueRepository
+from logs_sentinel.domains.projects.repositories import ProjectRepository
 
 
 @dataclass(slots=True)
@@ -35,9 +38,21 @@ class IssueService:
         self,
         issue_repo: IssueRepository,
         buckets_repo: IssueOccurrencesRepository,
+        project_repo: ProjectRepository | None = None,
     ) -> None:
         self._issue_repo = issue_repo
         self._buckets_repo = buckets_repo
+        self._project_repo = project_repo
+
+    async def ensure_project_accessible(
+        self, tenant_id: TenantId, project_id: ProjectId
+    ) -> None:
+        """Raise ValueError('PROJECT_NOT_FOUND') if project does not exist or does not belong to tenant."""
+        if self._project_repo is None:
+            raise ValueError("PROJECT_NOT_FOUND")
+        project = await self._project_repo.get_project(tenant_id, project_id)
+        if project is None:
+            raise ValueError("PROJECT_NOT_FOUND")
 
     async def record_occurrence(
         self,
@@ -75,7 +90,9 @@ class IssueService:
 
         await self._update_buckets(tenant_id, issue.id, input.occurred_at)
 
-        count_last_hour = await self._estimate_last_hour_count(tenant_id, issue.id, now=input.occurred_at)
+        count_last_hour = await self._estimate_last_hour_count(
+            tenant_id, issue.id, now=input.occurred_at
+        )
         spike_factor = 1.0  # simplified; can be enhanced with historical baseline
         issue.priority_score = compute_priority_score(
             severity=input.severity,
@@ -96,6 +113,7 @@ class IssueService:
         until: datetime | None,
         limit: int = 50,
         offset: int = 0,
+        sort_by: str = "priority",
     ) -> Sequence[Issue]:
         severities_raw = [s.value for s in severities] if severities else None
         statuses_raw = [s.value for s in statuses] if statuses else None
@@ -108,10 +126,78 @@ class IssueService:
             until=until,
             limit=limit,
             offset=offset,
+            sort_by=sort_by,
         )
 
     async def get_issue(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
         return await self._issue_repo.get_by_id(tenant_id=tenant_id, issue_id=issue_id)
+
+    async def get_issue_by_fingerprint(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId,
+        fingerprint: str,
+    ) -> Issue | None:
+        return await self._issue_repo.get_by_fingerprint(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            fingerprint=fingerprint,
+        )
+
+    async def create_issue_manual(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId,
+        title: str,
+        severity: IssueSeverity,
+    ) -> Issue:
+        """Create an issue manually (no log events). Uses a unique fingerprint."""
+        now = datetime.now(tz=UTC)
+        raw = f"manual-{uuid.uuid4().hex}"
+        fingerprint = hashlib.sha256(raw.encode()).hexdigest()[:64]
+        issue = await self._issue_repo.create_issue(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            fingerprint=fingerprint,
+            title=title[:200],
+            severity=severity.value,
+            occurred_at=now,
+        )
+        issue.priority_score = compute_priority_score(
+            severity=severity,
+            count_last_hour=1,
+            spike_factor=1.0,
+        )
+        return await self._issue_repo.save(issue)
+
+    async def create_issue_from_log(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId,
+        fingerprint: str,
+        title: str,
+        severity: IssueSeverity,
+        occurred_at: datetime,
+    ) -> Issue:
+        """Create an issue with the given fingerprint (from a log) and record one occurrence."""
+        issue = await self._issue_repo.create_issue(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            fingerprint=fingerprint,
+            title=title[:200],
+            severity=severity.value,
+            occurred_at=occurred_at,
+        )
+        await self._update_buckets(tenant_id, issue.id, occurred_at)
+        count_last_hour = await self._estimate_last_hour_count(
+            tenant_id, issue.id, now=occurred_at
+        )
+        issue.priority_score = compute_priority_score(
+            severity=severity,
+            count_last_hour=count_last_hour,
+            spike_factor=1.0,
+        )
+        return await self._issue_repo.save(issue)
 
     async def save_issue(self, issue: Issue) -> Issue:
         """Persist the given issue aggregate."""
@@ -152,4 +238,3 @@ class IssueService:
             until=now,
         )
         return sum(b.count for b in buckets)
-

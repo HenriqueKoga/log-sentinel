@@ -55,4 +55,3 @@ class AuthenticatedUser:
     user: User
     tenant: Tenant
     role: Role
-

@@ -4,7 +4,7 @@ import { initReactI18next, I18nextProvider } from "react-i18next";
 import en from "./locales/en/common.json";
 import ptBR from "./locales/pt-BR/common.json";
 
-const defaultLang = import.meta.env.VITE_I18N_DEFAULT_LANG || "en";
+const defaultLang = import.meta.env.VITE_I18N_DEFAULT_LANG || "pt-BR";
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -12,7 +12,7 @@ i18n.use(initReactI18next).init({
     "pt-BR": { common: ptBR },
   },
   lng: defaultLang,
-  fallbackLng: ["pt-BR"],
+  fallbackLng: ["pt-BR", "en"],
   ns: ["common"],
   defaultNS: "common",
   interpolation: { escapeValue: false },

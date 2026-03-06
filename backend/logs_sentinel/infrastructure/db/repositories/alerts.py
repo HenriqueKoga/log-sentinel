@@ -36,7 +36,9 @@ class AlertRuleRepositorySQLAlchemy(AlertRuleRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_rules(self, tenant_id: TenantId, project_id: ProjectId | None) -> list[AlertRule]:
+    async def list_rules(
+        self, tenant_id: TenantId, project_id: ProjectId | None
+    ) -> list[AlertRule]:
         stmt = AlertRuleModel.__table__.select().where(
             AlertRuleModel.tenant_id == int(tenant_id),
         )
@@ -267,4 +269,3 @@ class AlertEventRepositorySQLAlchemy(AlertEventRepository):
                 )
             )
         return events
-

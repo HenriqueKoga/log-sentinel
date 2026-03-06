@@ -52,4 +52,3 @@ def compute_fingerprint(
         hasher.update(b"|stack:")
         hasher.update(top.encode("utf-8"))
     return hasher.hexdigest()
-

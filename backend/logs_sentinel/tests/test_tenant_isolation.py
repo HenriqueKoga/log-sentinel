@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from logs_sentinel.domains.identity.entities import Tenant, TenantId, User, UserId
-from logs_sentinel.infrastructure.db.base import Base
+from logs_sentinel.infrastructure.db.models import create_all_tables
 
 try:
     import aiosqlite  # noqa: F401
@@ -30,7 +30,7 @@ async def test_membership_repository_respects_tenant_isolation() -> None:
     test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
 
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(create_all_tables)
 
     async with AsyncSession(test_engine, expire_on_commit=False) as session:
         # Create two tenants and one user, but only one membership
@@ -62,4 +62,3 @@ async def test_membership_repository_respects_tenant_isolation() -> None:
         auth_user = await membership_repo.get_primary_membership(UserId(u1.id))
         assert auth_user is not None
         assert auth_user.tenant.id == TenantId(t1.id)
-

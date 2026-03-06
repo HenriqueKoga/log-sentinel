@@ -85,7 +85,30 @@ class SnoozeRequest(BaseModel):
     duration_minutes: int = Field(gt=0, le=7 * 24 * 60)
 
 
+class CreateIssueRequest(BaseModel):
+    project_id: int
+    title: str = Field(min_length=1, max_length=255)
+    severity: IssueSeverityEnum
+
+
+class CreateIssueFromLogRequest(BaseModel):
+    log_id: int
+
+
+class SuggestIssueRequest(BaseModel):
+    context: str = Field(min_length=1, max_length=10000)
+
+
+class SuggestIssueResponse(BaseModel):
+    title: str
+    severity: IssueSeverityEnum
+
+
+class EnrichIssueRequest(BaseModel):
+    """Optional: when provided, only this log is sent to the LLM (e.g. user requested analysis from log detail)."""
+
+    log_id: int | None = None
+
+
 class EnrichIssueResponse(BaseModel):
     enrichment: IssueEnrichmentResponse
-
-

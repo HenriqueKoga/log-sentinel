@@ -1,0 +1,2 @@
+"""AI Insights domain package."""
+

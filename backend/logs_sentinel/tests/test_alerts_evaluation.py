@@ -37,7 +37,9 @@ class InMemoryRuleRepo(AlertRuleRepository):
     def __init__(self, rules: list[AlertRule]) -> None:
         self._rules = rules
 
-    async def list_rules(self, tenant_id: TenantId, project_id: ProjectId | None) -> list[AlertRule]:
+    async def list_rules(
+        self, tenant_id: TenantId, project_id: ProjectId | None
+    ) -> list[AlertRule]:
         return [r for r in self._rules if r.tenant_id == tenant_id and r.project_id == project_id]
 
     async def create_rule(
@@ -219,4 +221,3 @@ async def test_alert_evaluation_fires_when_threshold_met() -> None:
     assert len(events) == 1
     assert len(events_repo.events) == 1
     assert len(sender.sent) == 1
-

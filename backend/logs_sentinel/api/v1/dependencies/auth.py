@@ -116,4 +116,3 @@ async def get_tenant_context(
         user_id=auth_user.user.id,
         role=auth_user.role,
     )
-

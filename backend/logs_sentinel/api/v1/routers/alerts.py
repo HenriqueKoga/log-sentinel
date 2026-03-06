@@ -43,7 +43,6 @@ async def get_alerts_service(
     events_repo: AlertEventRepository = AlertEventRepositorySQLAlchemy(session)
     channels_repo: NotificationChannelRepository = NotificationChannelRepositorySQLAlchemy(session)
     sender = SlackWebhookSender()
-    # Issue occurrences repo is only needed for evaluation, wired in worker.
     from logs_sentinel.infrastructure.db.repositories.issues import (
         IssueOccurrencesRepositorySQLAlchemy,
     )
@@ -253,4 +252,3 @@ async def list_events(
         )
         for ev in events
     ]
-

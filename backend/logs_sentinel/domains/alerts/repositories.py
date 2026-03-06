@@ -14,8 +14,9 @@ from .entities import AlertEvent, AlertRule, AlertRuleId, NotificationChannel
 class AlertRuleRepository(Protocol):
     """Repository for alert rules."""
 
-    async def list_rules(self, tenant_id: TenantId, project_id: ProjectId | None) -> Sequence[AlertRule]:
-        ...
+    async def list_rules(
+        self, tenant_id: TenantId, project_id: ProjectId | None
+    ) -> Sequence[AlertRule]: ...
 
     async def create_rule(
         self,
@@ -24,18 +25,15 @@ class AlertRuleRepository(Protocol):
         name: str,
         kind: str,
         threshold: float,
-    ) -> AlertRule:
-        ...
+    ) -> AlertRule: ...
 
-    async def get_rule(self, tenant_id: TenantId, rule_id: AlertRuleId) -> AlertRule | None:
-        ...
+    async def get_rule(self, tenant_id: TenantId, rule_id: AlertRuleId) -> AlertRule | None: ...
 
 
 class NotificationChannelRepository(Protocol):
     """Repository for notification channels (e.g., Slack)."""
 
-    async def list_channels(self, tenant_id: TenantId) -> Sequence[NotificationChannel]:
-        ...
+    async def list_channels(self, tenant_id: TenantId) -> Sequence[NotificationChannel]: ...
 
 
 class AlertEventRepository(Protocol):
@@ -48,14 +46,11 @@ class AlertEventRepository(Protocol):
         rule_id: AlertRuleId,
         triggered_at: datetime,
         payload_json: dict[str, object],
-    ) -> AlertEvent:
-        ...
+    ) -> AlertEvent: ...
 
     async def list_events(
         self,
         tenant_id: TenantId,
         since: datetime | None,
         limit: int = 50,
-    ) -> Sequence[AlertEvent]:
-        ...
-
+    ) -> Sequence[AlertEvent]: ...

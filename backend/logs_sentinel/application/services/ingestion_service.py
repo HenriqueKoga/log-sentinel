@@ -9,6 +9,8 @@ from typing import Any, Protocol
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import (
     IngestToken,
+    LogEvent,
+    LogEventId,
     LogLevel,
     ProjectId,
     hash_ingest_token,
@@ -18,7 +20,8 @@ from logs_sentinel.domains.ingestion.normalization import (
     compute_fingerprint,
     normalize_message,
 )
-from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository, LogEventRepository
+from logs_sentinel.domains.ingestion.repositories import IngestTokenRepository
+from logs_sentinel.domains.logs.repositories import LogsRepository
 
 
 @dataclass(slots=True)
@@ -70,7 +73,7 @@ class IngestionService:
     def __init__(
         self,
         token_repo: IngestTokenRepository,
-        log_repo: LogEventRepository,
+        log_repo: LogsRepository,
         rate_limiter: RateLimiter,
         queue: IngestQueue,
         per_token_limit_per_minute: int = 5_000,
@@ -101,7 +104,6 @@ class IngestionService:
         if not events:
             raise ValueError("INGEST_EMPTY_BATCH")
 
-        # Enforce plan usage caps if configured.
         if self._usage_checker is not None:
             await self._usage_checker.check_and_increment(
                 tenant_id=token.tenant_id,
@@ -118,17 +120,12 @@ class IngestionService:
             raise ValueError("INGEST_RATE_LIMITED")
 
         now = datetime.now(tz=UTC)
-        # Normalize and compute fingerprints concurrently for validation only.
         async with TaskGroup() as tg:
-            tasks = [
-                tg.create_task(self._normalize_for_validation(event))
-                for event in events
-            ]
-
-        # Ensure all tasks completed without raising.
+            tasks = [tg.create_task(self._normalize_for_validation(event)) for event in events]
         _ = [task.result() for task in tasks]
 
         raw_events: list[dict[str, Any]] = []
+        events_for_db: list[LogEvent] = []
         for event in events:
             raw_events.append(
                 {
@@ -142,6 +139,21 @@ class IngestionService:
                     "raw_json": event.raw,
                 }
             )
+            events_for_db.append(
+                LogEvent(
+                    id=LogEventId(0),
+                    tenant_id=token.tenant_id,
+                    project_id=token.project_id,
+                    received_at=now,
+                    level=LogLevel(event.level),
+                    message=event.message,
+                    exception_type=event.exception_type,
+                    stacktrace=event.stacktrace,
+                    raw_json=event.raw,
+                )
+            )
+
+        await self._log_repo.create_many(events_for_db)
 
         batch_id = await self._queue.enqueue_batch(
             tenant_id=token.tenant_id,
@@ -175,4 +187,3 @@ class IngestionService:
         # The level is validated but not used to compute fingerprint here.
         _ = level
         return NormalizedLog(normalized_message=normalized_message, fingerprint=fingerprint)
-

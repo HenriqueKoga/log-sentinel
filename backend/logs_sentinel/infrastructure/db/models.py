@@ -20,6 +20,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from logs_sentinel.infrastructure.db.base import Base
 
 
+def create_all_tables(bind: Any) -> None:
+    """Create all tables in dependency order to avoid 'Defining tables out-of-order' warning."""
+    tables = list(Base.metadata.sorted_tables)
+    Base.metadata.create_all(bind, tables=tables)
+
+
 class TenantModel(Base):
     __tablename__ = "tenants"
 
@@ -62,9 +68,7 @@ class MembershipModel(Base):
     tenant = relationship("TenantModel")
     user = relationship("UserModel")
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "user_id", name="uq_membership_tenant_user"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "user_id", name="uq_membership_tenant_user"),)
 
 
 class ProjectModel(Base):
@@ -97,6 +101,7 @@ class IngestTokenModel(Base):
         nullable=False,
         index=True,
     )
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -108,7 +113,9 @@ class LogEventModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     project_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     level: Mapped[str] = mapped_column(String(32), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     exception_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -223,6 +230,7 @@ class TenantPlanModel(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    enable_llm_enrichment: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
 class UsageCounterModel(Base):
@@ -236,6 +244,8 @@ class UsageCounterModel(Base):
         nullable=False,
     )
     events_ingested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    llm_enrichments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    credits_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         UniqueConstraint(
@@ -246,3 +256,66 @@ class UsageCounterModel(Base):
         ),
     )
 
+
+class FixSuggestionAnalysisModel(Base):
+    """Stored AI analysis for a fix suggestion (tenant + project + fingerprint)."""
+
+    __tablename__ = "fix_suggestion_analyses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    fingerprint: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    probable_cause: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested_fix: Mapped[str] = mapped_column(Text, nullable=False)
+    code_snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "project_id",
+            "fingerprint",
+            name="uq_fix_suggestion_analysis_tenant_project_fingerprint",
+        ),
+    )
+
+
+class ChatSessionModel(Base):
+    """Chat session for Log Chat (per user, within tenant + optional project)."""
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ChatMessageModel(Base):
+    """Single message in a chat session (user or assistant)."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)

@@ -7,8 +7,18 @@ from hashlib import sha256
 from typing import Any, NewType
 
 from logs_sentinel.domains.identity.entities import TenantId
+from logs_sentinel.domains.projects.entities import ProjectId
 
-ProjectId = NewType("ProjectId", int)
+__all__ = [
+    "IngestToken",
+    "IngestTokenId",
+    "LogEvent",
+    "LogEventId",
+    "LogLevel",
+    "ProjectId",
+    "hash_ingest_token",
+]
+
 IngestTokenId = NewType("IngestTokenId", int)
 LogEventId = NewType("LogEventId", int)
 
@@ -24,22 +34,13 @@ class LogLevel(StrEnum):
 
 
 @dataclass(slots=True)
-class Project:
-    """Represents an application or service that sends logs."""
-
-    id: ProjectId
-    tenant_id: TenantId
-    name: str
-    created_at: datetime
-
-
-@dataclass(slots=True)
 class IngestToken:
     """Token used to authenticate ingestion requests for a project."""
 
     id: IngestTokenId
     tenant_id: TenantId
     project_id: ProjectId
+    name: str | None
     token_hash: str
     last_used_at: datetime | None
     revoked_at: datetime | None
@@ -69,4 +70,3 @@ def hash_ingest_token(raw_token: str) -> str:
 
     digest = sha256(raw_token.encode("utf-8")).hexdigest()
     return digest
-

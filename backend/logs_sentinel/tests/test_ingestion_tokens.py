@@ -24,6 +24,7 @@ def test_ingest_token_is_active_when_not_revoked() -> None:
         id=IngestTokenId(1),
         tenant_id=TenantId(1),
         project_id=ProjectId(1),
+        name=None,
         token_hash="hash",
         last_used_at=None,
         revoked_at=None,
@@ -37,9 +38,9 @@ def test_ingest_token_is_inactive_when_revoked() -> None:
         id=IngestTokenId(1),
         tenant_id=TenantId(1),
         project_id=ProjectId(1),
+        name=None,
         token_hash="hash",
         last_used_at=None,
         revoked_at=now,
     )
     assert not token.is_active
-

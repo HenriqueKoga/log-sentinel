@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.domains.identity.entities import TenantId
@@ -129,7 +130,19 @@ class IssueRepositorySQLAlchemy(IssueRepository):
         if until is not None:
             stmt = stmt.where(IssueModel.last_seen <= until)
 
-        stmt = stmt.order_by(IssueModel.priority_score.desc()).limit(limit).offset(offset)
+        sort_by = kwargs.get("sort_by", "priority")
+        if sort_by == "severity":
+            severity_order = case(
+                (IssueModel.severity == "critical", 4),
+                (IssueModel.severity == "high", 3),
+                (IssueModel.severity == "medium", 2),
+                else_=1,
+            )
+            stmt = stmt.order_by(severity_order.desc()).limit(limit).offset(offset)
+        elif sort_by == "last_seen":
+            stmt = stmt.order_by(IssueModel.last_seen.desc()).limit(limit).offset(offset)
+        else:
+            stmt = stmt.order_by(IssueModel.priority_score.desc()).limit(limit).offset(offset)
 
         result = await self._session.execute(stmt)
         rows = result.fetchall()

@@ -6,6 +6,7 @@ import pytest
 
 from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.domains.billing.entities import (
+    PlanStatus,
     PlanType,
     TenantPlan,
     TenantPlanId,
@@ -30,6 +31,7 @@ class InMemoryTenantPlanRepo(TenantPlanRepository):
         tenant_id: TenantId,
         plan_type: str,
         starts_at: datetime,
+        enable_llm_enrichment: bool = False,
     ) -> TenantPlan:
         plan = TenantPlan(
             id=TenantPlanId(self._next_id),
@@ -37,11 +39,25 @@ class InMemoryTenantPlanRepo(TenantPlanRepository):
             plan_type=PlanType(plan_type),
             starts_at=starts_at,
             ends_at=None,
-            status="active",  # type: ignore[arg-type]
+            status=PlanStatus.ACTIVE,
+            enable_llm_enrichment=enable_llm_enrichment,
         )
         self._next_id += 1
         self._plans[int(tenant_id)] = plan
         return plan
+
+    async def set_plan_llm_enrichment(self, tenant_id: TenantId, enable: bool) -> None:
+        plan = self._plans.get(int(tenant_id))
+        if plan is not None:
+            self._plans[int(tenant_id)] = TenantPlan(
+                id=plan.id,
+                tenant_id=plan.tenant_id,
+                plan_type=plan.plan_type,
+                starts_at=plan.starts_at,
+                ends_at=plan.ends_at,
+                status=plan.status,
+                enable_llm_enrichment=enable,
+            )
 
 
 class InMemoryUsageCounterRepo(UsageCounterRepository):
@@ -62,7 +78,9 @@ class InMemoryUsageCounterRepo(UsageCounterRepository):
         tenant_id: TenantId,
         period_start: datetime,
         period: UsagePeriod,
-        delta: int,
+        events_delta: int,
+        llm_delta: int,
+        credits_delta: int,
     ) -> UsageCounter:
         key = (int(tenant_id), period_start, period.value)
         existing = self._counters.get(key)
@@ -72,12 +90,16 @@ class InMemoryUsageCounterRepo(UsageCounterRepository):
                 tenant_id=tenant_id,
                 period_start=period_start,
                 period=period,
-                events_ingested=delta,
+                events_ingested=events_delta,
+                llm_enrichments=llm_delta,
+                credits_used=credits_delta,
             )
             self._next_id += 1
             self._counters[key] = counter
             return counter
-        existing.events_ingested += delta
+        existing.events_ingested += events_delta
+        existing.llm_enrichments += llm_delta
+        existing.credits_used += credits_delta
         return existing
 
 
@@ -87,11 +109,11 @@ async def test_billing_allows_within_monthly_limit(monkeypatch: pytest.MonkeyPat
     usage = InMemoryUsageCounterRepo()
     service = BillingService(plans_repo=plans, usage_repo=usage)
 
-    # Force plan type to MONTHLY and a high limit for the test.
     from logs_sentinel.infrastructure.settings import config as config_module
 
     monkeypatch.setattr(config_module.settings, "default_plan", "monthly", raising=False)
-    monkeypatch.setattr(config_module.settings, "monthly_events_limit", 10, raising=False)
+    monkeypatch.setattr(config_module.settings, "credits_per_event", 1, raising=False)
+    monkeypatch.setattr(config_module.settings, "monthly_credits_limit", 10, raising=False)
 
     tenant_id = TenantId(1)
     result = await service.check_and_increment(tenant_id=tenant_id, events=5)
@@ -108,7 +130,8 @@ async def test_billing_raises_when_limit_exceeded(monkeypatch: pytest.MonkeyPatc
     from logs_sentinel.infrastructure.settings import config as config_module
 
     monkeypatch.setattr(config_module.settings, "default_plan", "monthly", raising=False)
-    monkeypatch.setattr(config_module.settings, "monthly_events_limit", 5, raising=False)
+    monkeypatch.setattr(config_module.settings, "credits_per_event", 1, raising=False)
+    monkeypatch.setattr(config_module.settings, "monthly_credits_limit", 5, raising=False)
 
     tenant_id = TenantId(1)
     await service.check_and_increment(tenant_id=tenant_id, events=5)
@@ -116,4 +139,3 @@ async def test_billing_raises_when_limit_exceeded(monkeypatch: pytest.MonkeyPatc
     with pytest.raises(ValueError) as exc:
         await service.check_and_increment(tenant_id=tenant_id, events=1)
     assert str(exc.value) == "USAGE_LIMIT_EXCEEDED"
-
