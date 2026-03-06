@@ -23,9 +23,14 @@ class ChatAgentDeps:
 
 
 def _get_system_prompt(ctx: RunContext[ChatAgentDeps]) -> str:
+    now = datetime.now(UTC)
+    today_str = now.strftime("%A, %Y-%m-%d")
     base = (
+        f"Today's date is {today_str} (UTC)."
         "You are a helpful SRE assistant. You have access to tools to search logs, "
         "get top errors, and get error details. Use them when the user asks about logs or errors. "
+        "Log timestamps are in UTC. When the user asks about 'recent' or 'today' errors without specific dates, "
+        "omit from_dt and to_dt to use the default 72h window. "
     )
     lang = (ctx.deps.lang or "pt-BR").lower()
     base += "Respond in pt-BR." if lang.startswith("pt") else "Respond in English."
@@ -53,9 +58,9 @@ def create_chat_agent(model: str = "gpt-4o-mini") -> Agent[ChatAgentDeps, str]:
         to_dt: str | None = None,
         limit: int = 50,
     ) -> str:
-        """Search recent error/critical logs. Use from_dt and to_dt as ISO datetime strings, or omit for last 24h."""
+        """Search recent error/critical logs. Use from_dt and to_dt as ISO datetime strings (UTC, e.g. 2025-03-03T00:00:00Z), or omit for last 72h."""
         now = datetime.now(UTC)
-        default_from = now - timedelta(hours=24)
+        default_from = now - timedelta(hours=72)
         from_dt_parsed = parse_dt(from_dt) or default_from
         to_dt_parsed = parse_dt(to_dt) or now
         proj_id = project_id if project_id is not None else ctx.deps.project_id
@@ -75,9 +80,9 @@ def create_chat_agent(model: str = "gpt-4o-mini") -> Agent[ChatAgentDeps, str]:
         to_dt: str | None = None,
         limit: int = 20,
     ) -> str:
-        """Get top error clusters by fingerprint (count, sample message)."""
+        """Get top error clusters by fingerprint (count, sample message). Use from_dt/to_dt as ISO UTC (e.g. 2025-03-03T00:00:00Z), or omit for last 72h."""
         now = datetime.now(UTC)
-        default_from = now - timedelta(hours=24)
+        default_from = now - timedelta(hours=72)
         from_dt_parsed = parse_dt(from_dt) or default_from
         to_dt_parsed = parse_dt(to_dt) or now
         result = await ctx.deps.tools.top_errors(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import case
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.domains.identity.entities import TenantId
@@ -122,7 +122,8 @@ class IssueRepositorySQLAlchemy(IssueRepository):
         if project_id_raw is not None:
             stmt = stmt.where(IssueModel.project_id == int(project_id_raw))
         if severities:
-            stmt = stmt.where(IssueModel.severity.in_(list(severities)))
+            db_values = list(severities)
+            stmt = stmt.where(IssueModel.severity.in_(db_values))
         if statuses:
             stmt = stmt.where(IssueModel.status.in_(list(statuses)))
         if since is not None:
@@ -166,6 +167,31 @@ class IssueRepositorySQLAlchemy(IssueRepository):
                 )
             )
         return issues
+
+    async def count_issues(self, *args: Any, **kwargs: Any) -> int:
+        tenant_raw = kwargs.get("tenant_id")
+        tenant_id = int(tenant_raw) if tenant_raw is not None else 0
+        project_id_raw = kwargs.get("project_id")
+        severities = kwargs.get("severities")
+        statuses = kwargs.get("statuses")
+        since = kwargs.get("since")
+        until = kwargs.get("until")
+
+        stmt = IssueModel.__table__.select().where(IssueModel.tenant_id == tenant_id)
+        if project_id_raw is not None:
+            stmt = stmt.where(IssueModel.project_id == int(project_id_raw))
+        if severities:
+            stmt = stmt.where(IssueModel.severity.in_(list(severities)))
+        if statuses:
+            stmt = stmt.where(IssueModel.status.in_(list(statuses)))
+        if since is not None:
+            stmt = stmt.where(IssueModel.last_seen >= since)
+        if until is not None:
+            stmt = stmt.where(IssueModel.last_seen <= until)
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        result = await self._session.execute(count_stmt)
+        return int(result.scalar_one() or 0)
 
     async def get_by_id(self, tenant_id: Any, issue_id: Any) -> Issue | None:
         model = await self._session.get(IssueModel, int(issue_id))

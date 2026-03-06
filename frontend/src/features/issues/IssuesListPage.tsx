@@ -1,3 +1,4 @@
+import { Delete as DeleteIcon } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -5,7 +6,9 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
@@ -14,6 +17,7 @@ import {
   Paper,
   Table,
   TableBody,
+  TableContainer,
   TableCell,
   TableHead,
   TableRow,
@@ -35,6 +39,7 @@ import {
   IssuesStatusFilter,
   useCreateIssue,
   useCreateIssueFromLog,
+  useDeleteIssueMutation,
   useIssues,
 } from "./api";
 
@@ -59,13 +64,17 @@ export function IssuesListPage() {
   const projects = useProjects();
   const createIssue = useCreateIssue();
   const createFromLog = useCreateIssueFromLog();
+  const deleteIssue = useDeleteIssueMutation();
   const recentLogs = useLogs({ page: 1, page_size: 30, without_issue: true });
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [issueToDelete, setIssueToDelete] = useState<number | null>(null);
 
   const [projectId, setProjectId] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<IssuesStatusFilter>("all");
   const [sortBy, setSortBy] = useState<IssuesSortBy>("priority");
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 10;
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"from_log" | "manual">("from_log");
@@ -128,65 +137,83 @@ export function IssuesListPage() {
     setCreateTitle("");
     setCreateSeverity("medium");
     setCreateOpen(true);
+    void recentLogs.refetch();
   };
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+    <Box sx={{ pt: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
         <Typography variant="h5">{t("issues.title")}</Typography>
         <Box sx={{ flexGrow: 1 }} />
         <Button variant="contained" onClick={handleOpenCreate} sx={{ cursor: "pointer" }}>
           {t("issues.createIssue")}
         </Button>
-        <TextField
-          select
-          size="small"
-          label={t("issues.filterStatus")}
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as IssuesStatusFilter);
-            setPage(1);
-          }}
-          sx={{ minWidth: 120 }}
-        >
-          <MenuItem value="all">{t("issues.statusAll")}</MenuItem>
-          <MenuItem value="open">{t("issues.statusOpen")}</MenuItem>
-          <MenuItem value="closed">{t("issues.statusClosed")}</MenuItem>
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label={t("issues.sortBy")}
-          value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value as IssuesSortBy);
-            setPage(1);
-          }}
-          sx={{ minWidth: 140 }}
-        >
-          <MenuItem value="priority">{t("issues.sortPriority")}</MenuItem>
-          <MenuItem value="severity">{t("issues.sortSeverity")}</MenuItem>
-          <MenuItem value="last_seen">{t("issues.sortLastSeen")}</MenuItem>
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label={t("issues.project")}
-          value={projectId}
-          onChange={(e) => {
-            const v = e.target.value;
-            setProjectId(v === "all" ? "all" : Number(v));
-            setPage(1);
-          }}
-          sx={{ minWidth: 240 }}
-        >
-          <MenuItem value="all">{t("issues.allProjects")}</MenuItem>
-          {(projects.data ?? []).map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.name}
-            </MenuItem>
-          ))}
-        </TextField>
+      </Box>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+            {t("issues.filterStatus")}
+          </Typography>
+          <TextField
+            select
+            variant="filled"
+            size="small"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as IssuesStatusFilter);
+              setPage(1);
+            }}
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="all">{t("issues.statusAll")}</MenuItem>
+            <MenuItem value="open">{t("issues.statusOpen")}</MenuItem>
+            <MenuItem value="closed">{t("issues.statusClosed")}</MenuItem>
+          </TextField>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+            {t("issues.sortBy")}
+          </Typography>
+          <TextField
+            select
+            variant="filled"
+            size="small"
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value as IssuesSortBy);
+              setPage(1);
+            }}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="priority">{t("issues.sortPriority")}</MenuItem>
+            <MenuItem value="severity">{t("issues.sortSeverity")}</MenuItem>
+            <MenuItem value="last_seen">{t("issues.sortLastSeen")}</MenuItem>
+          </TextField>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+            {t("issues.project")}
+          </Typography>
+          <TextField
+            select
+            variant="filled"
+            size="small"
+            value={projectId}
+            onChange={(e) => {
+              const v = e.target.value;
+              setProjectId(v === "all" ? "all" : Number(v));
+              setPage(1);
+            }}
+            sx={{ minWidth: 240 }}
+          >
+            <MenuItem value="all">{t("issues.allProjects")}</MenuItem>
+            {(projects.data ?? []).map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
       </Box>
 
       {list.isLoading && <LoadingState label={t("common.loading")} />}
@@ -195,7 +222,7 @@ export function IssuesListPage() {
       {list.data && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-            <Box sx={{ height: "calc(100vh - 14rem)", minHeight: 300, overflow: "auto" }}>
+            <TableContainer sx={{ height: 440 }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
@@ -206,6 +233,7 @@ export function IssuesListPage() {
                     <TableCell>{t("issues.lastSeen")}</TableCell>
                     <TableCell align="right">{t("issues.total")}</TableCell>
                     <TableCell align="right">{t("issues.priority")}</TableCell>
+                    <TableCell padding="none" width={48} />
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -227,24 +255,72 @@ export function IssuesListPage() {
                       <TableCell>{formatDateTime(it.last_seen)}</TableCell>
                       <TableCell align="right">{formatNumber(it.total_count)}</TableCell>
                       <TableCell align="right">{it.priority_score.toFixed(2)}</TableCell>
+                      <TableCell padding="none" onClick={(e) => e.stopPropagation()}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={t("issues.delete")}
+                          onClick={() => {
+                            setIssueToDelete(it.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {list.data.items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Typography color="text.secondary">{t("issues.empty")}</Typography>
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-            </Box>
+            </TableContainer>
           </Paper>
           <Box sx={{ display: "flex", justifyContent: "flex-end", py: 2, flexShrink: 0 }}>
-            <Pagination page={page} onChange={(_e, p) => setPage(p)} />
+            <Pagination
+              count={Math.ceil((list.data?.aggregates?.total ?? 0) / pageSize)}
+              page={page}
+              onChange={(_e, p) => setPage(p)}
+            />
           </Box>
         </Box>
       )}
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>{t("issues.deleteConfirmTitle", "Delete issue?")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t(
+              "issues.deleteConfirmMessage",
+              "This action cannot be undone. The issue and its related data will be permanently deleted."
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} sx={{ cursor: "pointer" }}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteIssue.isPending}
+            onClick={async () => {
+              if (issueToDelete == null) return;
+              await deleteIssue.mutateAsync(issueToDelete);
+              setDeleteDialogOpen(false);
+              setIssueToDelete(null);
+            }}
+            sx={{ cursor: "pointer" }}
+          >
+            {deleteIssue.isPending ? t("common.loading") : t("issues.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t("issues.createIssue")}</DialogTitle>
@@ -353,6 +429,38 @@ export function IssuesListPage() {
               {createIssue.isPending ? t("common.loading") : t("issues.createIssueManual")}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>{t("issues.deleteConfirmTitle", "Delete issue?")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t(
+              "issues.deleteConfirmMessage",
+              "This action cannot be undone. The issue and its related data will be permanently deleted."
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} sx={{ cursor: "pointer" }}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteIssue.isPending || issueToDelete == null}
+            onClick={async () => {
+              if (issueToDelete != null) {
+                await deleteIssue.mutateAsync(issueToDelete);
+                setDeleteDialogOpen(false);
+                setIssueToDelete(null);
+              }
+            }}
+            sx={{ cursor: "pointer" }}
+          >
+            {deleteIssue.isPending ? t("common.loading") : t("issues.delete")}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

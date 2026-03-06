@@ -155,8 +155,10 @@ export const AppLayout = () => {
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col p-6">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Outlet />
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-visible">
+            <div className="min-h-full pt-1">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>
