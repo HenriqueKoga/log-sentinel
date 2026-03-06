@@ -186,6 +186,14 @@ class IssueRepositorySQLAlchemy(IssueRepository):
             snoozed_until=model.snoozed_until,
         )
 
+    async def delete(self, tenant_id: Any, issue_id: Any) -> bool:
+        model = await self._session.get(IssueModel, int(issue_id))
+        if model is None or model.tenant_id != int(tenant_id):
+            return False
+        await self._session.delete(model)
+        await self._session.flush()
+        return True
+
 
 class IssueOccurrencesRepositorySQLAlchemy(IssueOccurrencesRepository):
     """SQLAlchemy implementation of issue occurrence buckets repository."""

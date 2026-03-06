@@ -132,6 +132,10 @@ class IssueService:
     async def get_issue(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
         return await self._issue_repo.get_by_id(tenant_id=tenant_id, issue_id=issue_id)
 
+    async def delete_issue(self, tenant_id: TenantId, issue_id: IssueId) -> bool:
+        """Delete issue if it belongs to tenant. Returns True if deleted."""
+        return await self._issue_repo.delete(tenant_id=tenant_id, issue_id=issue_id)
+
     async def get_issue_by_fingerprint(
         self,
         tenant_id: TenantId,

@@ -47,6 +47,10 @@ class IssueRepository(Protocol):
 
     async def get_by_id(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None: ...
 
+    async def delete(self, tenant_id: TenantId, issue_id: IssueId) -> bool:
+        """Delete issue if it belongs to tenant. Returns True if deleted."""
+        ...
+
 
 class IssueOccurrencesRepository(Protocol):
     """Repository for issue occurrence buckets."""
