@@ -193,55 +193,56 @@ export function IssuesListPage() {
       {list.error && <ErrorState message={getErrorMessage(list.error)} />}
 
       {list.data && (
-        <Paper variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t("issues.issue")}</TableCell>
-                <TableCell>{t("issues.project")}</TableCell>
-                <TableCell>{t("issues.severity")}</TableCell>
-                <TableCell>{t("issues.status")}</TableCell>
-                <TableCell>{t("issues.lastSeen")}</TableCell>
-                <TableCell align="right">{t("issues.total")}</TableCell>
-                <TableCell align="right">{t("issues.priority")}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {list.data.items.map((it) => (
-                <TableRow
-                  key={it.id}
-                  hover
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/issues/${it.id}`)}
-                >
-                  <TableCell>{it.title}</TableCell>
-                  <TableCell>{projectNameById.get(it.project_id) ?? `#${it.project_id}`}</TableCell>
-                  <TableCell>
-                    <Chip size="small" color={severityColor(it.severity)} label={it.severity} />
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" color={statusColor(it.status)} label={it.status} />
-                  </TableCell>
-                  <TableCell>{formatDateTime(it.last_seen)}</TableCell>
-                  <TableCell align="right">{formatNumber(it.total_count)}</TableCell>
-                  <TableCell align="right">{it.priority_score.toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-              {list.data.items.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <Typography color="text.secondary">{t("issues.empty")}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
-
-      {list.data && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-          <Pagination page={page} onChange={(_e, p) => setPage(p)} />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            <Box sx={{ height: "calc(100vh - 14rem)", minHeight: 300, overflow: "auto" }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t("issues.issue")}</TableCell>
+                    <TableCell>{t("issues.project")}</TableCell>
+                    <TableCell>{t("issues.severity")}</TableCell>
+                    <TableCell>{t("issues.status")}</TableCell>
+                    <TableCell>{t("issues.lastSeen")}</TableCell>
+                    <TableCell align="right">{t("issues.total")}</TableCell>
+                    <TableCell align="right">{t("issues.priority")}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {list.data.items.map((it) => (
+                    <TableRow
+                      key={it.id}
+                      hover
+                      sx={{ cursor: "pointer" }}
+                      onClick={() => navigate(`/issues/${it.id}`)}
+                    >
+                      <TableCell>{it.title}</TableCell>
+                      <TableCell>{projectNameById.get(it.project_id) ?? `#${it.project_id}`}</TableCell>
+                      <TableCell>
+                        <Chip size="small" color={severityColor(it.severity)} label={it.severity} />
+                      </TableCell>
+                      <TableCell>
+                        <Chip size="small" color={statusColor(it.status)} label={it.status} />
+                      </TableCell>
+                      <TableCell>{formatDateTime(it.last_seen)}</TableCell>
+                      <TableCell align="right">{formatNumber(it.total_count)}</TableCell>
+                      <TableCell align="right">{it.priority_score.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {list.data.items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <Typography color="text.secondary">{t("issues.empty")}</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Paper>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", py: 2, flexShrink: 0 }}>
+            <Pagination page={page} onChange={(_e, p) => setPage(p)} />
+          </Box>
         </Box>
       )}
 

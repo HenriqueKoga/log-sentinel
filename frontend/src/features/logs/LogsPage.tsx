@@ -48,7 +48,7 @@ export function LogsPage() {
       {
         accessorKey: "timestamp",
         header: t("logs.time"),
-        cell: (ctx) => new Date(ctx.getValue<string>()).toLocaleTimeString(),
+        cell: (ctx) => new Date(ctx.getValue<string>()).toLocaleString(),
       },
       {
         accessorKey: "level",
@@ -171,8 +171,8 @@ export function LogsPage() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col pt-4">
-        <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-white/5 bg-black/30">
+      <div className="flex flex-col pt-4">
+        <div className="h-[min(650px,calc(100vh-16rem))] min-h-[300px] overflow-auto rounded-2xl border border-white/5 bg-black/30">
           <table className="min-w-full text-sm">
             <thead className="sticky top-0 bg-black/60 backdrop-blur">
               {table.getHeaderGroups().map((hg) => (

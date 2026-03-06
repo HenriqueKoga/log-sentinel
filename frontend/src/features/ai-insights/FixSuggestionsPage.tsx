@@ -108,8 +108,8 @@ export function FixSuggestionsPage() {
         </TextField>
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-white/5 bg-black/30">
+      <div className="mt-4 flex flex-col">
+        <div className="h-[calc(100vh-14rem)] min-h-[300px] overflow-auto rounded-2xl border border-white/5 bg-black/30">
           <table className="min-w-full text-sm">
             <thead className="sticky top-0 bg-black/60 backdrop-blur">
               <tr>
