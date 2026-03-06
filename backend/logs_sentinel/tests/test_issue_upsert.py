@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -69,6 +70,32 @@ class InMemoryIssueRepo(IssueRepository):
         if key in self._by_fp:
             del self._by_fp[key]
         return True
+
+    async def count_issues(
+        self,
+        tenant_id: Any,
+        project_id: Any,
+        severities: Sequence[str] | None,
+        statuses: Sequence[str] | None,
+        since: Any,
+        until: Any,
+    ) -> int:
+        n = 0
+        for issue in self._by_id.values():
+            if int(issue.tenant_id) != int(tenant_id):
+                continue
+            if project_id is not None and int(issue.project_id) != int(project_id):
+                continue
+            if severities and issue.severity.value not in severities:
+                continue
+            if statuses and issue.status.value not in statuses:
+                continue
+            if since is not None and issue.last_seen < since:
+                continue
+            if until is not None and issue.last_seen > until:
+                continue
+            n += 1
+        return n
 
 
 class InMemoryBucketsRepo(IssueOccurrencesRepository):
