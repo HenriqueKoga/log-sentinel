@@ -1,6 +1,7 @@
+import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getErrorMessage } from "../../shared/api/errors";
@@ -32,6 +33,7 @@ function statusColor(s: IssueStatus): "default" | "success" | "warning" {
 
 export function IssueDetailPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const issueId = Number(useParams().issueId);
   const issue = useIssue(issueId);
   const plan = useBillingPlan();
@@ -62,7 +64,22 @@ export function IssueDetailPage() {
   const it = issue.data;
 
   return (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        flex: 1,
+        overflowY: "auto",
+      }}
+    >
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate("/issues")}
+        sx={{ alignSelf: "flex-start", mb: 2, cursor: "pointer" }}
+      >
+        {t("issues.backToList", "Back to issues")}
+      </Button>
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="h5">{it.title}</Typography>
