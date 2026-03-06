@@ -88,6 +88,7 @@
     "empty": "No tokens yet."
   },
   "issues": {
+    "backToList": "Back to issues",
     "title": "Issues",
     "createIssue": "Create issue",
     "createIssueManual": "Create manually",
