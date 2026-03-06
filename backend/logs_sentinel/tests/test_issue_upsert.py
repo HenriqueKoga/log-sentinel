@@ -60,6 +60,16 @@ class InMemoryIssueRepo(IssueRepository):
     async def get_by_id(self, tenant_id: Any, issue_id: Any) -> Issue | None:
         return self._by_id.get(int(issue_id))
 
+    async def delete(self, tenant_id: Any, issue_id: Any) -> bool:
+        issue = self._by_id.get(int(issue_id))
+        if issue is None or int(issue.tenant_id) != int(tenant_id):
+            return False
+        del self._by_id[int(issue_id)]
+        key = (int(tenant_id), int(issue.project_id), issue.fingerprint)
+        if key in self._by_fp:
+            del self._by_fp[key]
+        return True
+
 
 class InMemoryBucketsRepo(IssueOccurrencesRepository):
     def __init__(self) -> None:

@@ -132,7 +132,10 @@
     "samples": "Exemplos",
     "noSamples": "Sem exemplos recentes para esta issue.",
     "enrichment": "Enriquecimento (IA)",
-    "suspectedCause": "Causa suspeita"
+    "suspectedCause": "Causa suspeita",
+    "delete": "Excluir",
+    "deleteConfirmTitle": "Excluir issue?",
+    "deleteConfirmMessage": "Esta ação não pode ser desfeita. A issue e seus dados relacionados serão excluídos permanentemente."
   },
   "alerts": {
     "title": "Alertas",

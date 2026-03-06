@@ -1,5 +1,21 @@
-import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
-import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { ArrowBack as ArrowBackIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Divider,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -11,6 +27,7 @@ import { useBillingPlan } from "../billing/api";
 import {
   IssueSeverity,
   IssueStatus,
+  useDeleteIssue,
   useEnrichIssue,
   useIssue,
   useIssueOccurrences,
@@ -46,7 +63,9 @@ export function IssueDetailPage() {
   const resolve = useResolveIssue(issueId);
   const reopen = useReopenIssue(issueId);
   const snooze = useSnoozeIssue(issueId);
+  const deleteIssue = useDeleteIssue(issueId);
   const [snoozeMinutes, setSnoozeMinutes] = useState(60);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleAnalyzeWithAi = () => {
     if (!llmEnabled || enrichIssue.isPending) return;
@@ -122,6 +141,16 @@ export function IssueDetailPage() {
             sx={{ cursor: "pointer" }}
           >
             {t("issues.reopen")}
+          </Button>
+          <Button
+            color="error"
+            variant="outlined"
+            startIcon={<DeleteIcon />}
+            disabled={deleteIssue.isPending}
+            onClick={() => setDeleteDialogOpen(true)}
+            sx={{ cursor: "pointer" }}
+          >
+            {t("issues.delete")}
           </Button>
         </Stack>
       </Box>
@@ -246,6 +275,40 @@ export function IssueDetailPage() {
           </Box>
         ))}
       </Paper>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>{t("issues.deleteConfirmTitle", "Delete issue?")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t(
+              "issues.deleteConfirmMessage",
+              "This action cannot be undone. The issue and its related data will be permanently deleted."
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} sx={{ cursor: "pointer" }}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteIssue.isPending}
+            onClick={async () => {
+              try {
+                await deleteIssue.mutateAsync();
+                setDeleteDialogOpen(false);
+                navigate("/issues");
+              } catch {
+                // Error handled by mutation
+              }
+            }}
+            sx={{ cursor: "pointer" }}
+          >
+            {deleteIssue.isPending ? t("common.loading") : t("issues.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -132,7 +132,10 @@
     "samples": "Samples",
     "noSamples": "No recent samples for this issue.",
     "enrichment": "AI enrichment",
-    "suspectedCause": "Suspected cause"
+    "suspectedCause": "Suspected cause",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete issue?",
+    "deleteConfirmMessage": "This action cannot be undone. The issue and its related data will be permanently deleted."
   },
   "alerts": {
     "title": "Alerts",

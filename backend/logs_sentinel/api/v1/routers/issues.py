@@ -387,6 +387,21 @@ async def get_issue_detail(
     )
 
 
+@router.delete("/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_issue(
+    issue_id: int,
+    ctx: Annotated[TenantContext, Depends(get_tenant_context)],
+    service: Annotated[IssueService, Depends(get_issue_service)],
+) -> None:
+    tenant_id: TenantId = ctx.tenant_id
+    deleted = await service.delete_issue(tenant_id=tenant_id, issue_id=IssueId(issue_id))
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "ISSUE_NOT_FOUND"},
+        )
+
+
 @router.get("/{issue_id}/occurrences", response_model=IssueOccurrencesResponse)
 async def get_issue_occurrences(
     issue_id: int,
