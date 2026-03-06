@@ -161,6 +161,19 @@ export function useDeleteIssue(issueId: number) {
   });
 }
 
+export function useDeleteIssueMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (issueId: number) => {
+      await http.delete(`/api/v1/issues/${issueId}`);
+    },
+    onSuccess: async (_, issueId) => {
+      await qc.invalidateQueries({ queryKey: ["issues"] });
+      await qc.invalidateQueries({ queryKey: ["issues", issueId] });
+    },
+  });
+}
+
 export function useSnoozeIssue(issueId: number) {
   const qc = useQueryClient();
   return useMutation({

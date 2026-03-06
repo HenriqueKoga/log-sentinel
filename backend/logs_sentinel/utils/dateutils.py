@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def parse_dt(s: str | None) -> datetime | None:
-    """Parse ISO datetime string (supports Z suffix). Returns None if empty or invalid."""
+    """Parse ISO datetime string (supports Z suffix). Always returns UTC-aware datetime.
+    Strings without timezone (e.g. '2025-03-03') are interpreted as UTC."""
     if not s:
         return None
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt
     except (ValueError, TypeError):
         return None
 

@@ -12,7 +12,6 @@ from logs_sentinel.application.services.alerts_service import AlertsService
 from logs_sentinel.application.services.issue_service import IssueService, NewOccurrenceInput
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
-from logs_sentinel.domains.issues.entities import IssueSeverity
 from logs_sentinel.infrastructure.db.base import SessionFactory
 from logs_sentinel.infrastructure.db.repositories.alerts import (
     AlertEventRepositorySQLAlchemy,
@@ -24,6 +23,7 @@ from logs_sentinel.infrastructure.db.repositories.issues import (
     IssueRepositorySQLAlchemy,
 )
 from logs_sentinel.infrastructure.notifications.slack import SlackWebhookSender
+from logs_sentinel.utils.severity import log_level_to_issue_severity
 
 
 @shared_task(name="logs_sentinel.workers.tasks.process_ingest_batch")  # type: ignore[untyped-decorator]
@@ -54,7 +54,7 @@ def process_ingest_batch(payload: dict[str, Any]) -> None:
                     message=event["message"],
                     exception_type=event.get("exception_type"),
                     stacktrace=event.get("stacktrace"),
-                    severity=IssueSeverity.ERROR,
+                    severity=log_level_to_issue_severity(event.get("level", "high")),
                     occurred_at=occurred_at,
                 )
                 issue = await service.record_occurrence(

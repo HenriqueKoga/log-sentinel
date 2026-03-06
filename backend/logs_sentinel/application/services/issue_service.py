@@ -129,6 +129,26 @@ class IssueService:
             sort_by=sort_by,
         )
 
+    async def count_issues(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId | None,
+        severities: Sequence[IssueSeverity] | None,
+        statuses: Sequence[IssueStatus] | None,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> int:
+        severities_raw = [s.value for s in severities] if severities else None
+        statuses_raw = [s.value for s in statuses] if statuses else None
+        return await self._issue_repo.count_issues(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            severities=severities_raw,
+            statuses=statuses_raw,
+            since=since,
+            until=until,
+        )
+
     async def get_issue(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
         return await self._issue_repo.get_by_id(tenant_id=tenant_id, issue_id=issue_id)
 

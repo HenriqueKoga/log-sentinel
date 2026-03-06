@@ -66,7 +66,7 @@ class LogsService:
 
         enrichment_map = await self._enrichment_lookup.get_enrichment_map(tenant_id)
 
-        fetch_limit = min(200, page_size * 4) if without_issue else limit
+        fetch_limit = min(500, page_size * 20) if without_issue else limit
         fetch_offset = 0 if without_issue else offset
 
         rows, total = await self._repo.list_logs(

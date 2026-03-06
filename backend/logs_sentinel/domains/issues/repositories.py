@@ -45,6 +45,16 @@ class IssueRepository(Protocol):
         sort_by: str = "priority",
     ) -> Sequence[Issue]: ...
 
+    async def count_issues(
+        self,
+        tenant_id: TenantId,
+        project_id: ProjectId | None,
+        severities: Sequence[str] | None,
+        statuses: Sequence[str] | None,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> int: ...
+
     async def get_by_id(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None: ...
 
     async def delete(self, tenant_id: TenantId, issue_id: IssueId) -> bool:

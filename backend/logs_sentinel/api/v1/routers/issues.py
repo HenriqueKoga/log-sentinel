@@ -92,7 +92,14 @@ async def list_issues(
         sort_by=sort_by,
     )
 
-    total = len(issues)
+    total = await service.count_issues(
+        tenant_id=tenant_id,
+        project_id=project,
+        severities=severities,
+        statuses=statuses,
+        since=from_,
+        until=to,
+    )
     by_severity_counter: Counter[str] = Counter()
     by_status_counter: Counter[str] = Counter()
     for issue in issues:

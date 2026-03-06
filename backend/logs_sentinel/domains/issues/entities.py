@@ -20,7 +20,6 @@ class IssueSeverity(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
-    ERROR = "error"
 
 
 class IssueStatus(StrEnum):
