@@ -21,6 +21,7 @@ from logs_sentinel.api.v1.schemas.chat import (
 from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.application.services.chat_service import ChatService
 from logs_sentinel.domains.chat.entities import ChatMessage
+from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.utils.lang import resolved_lang
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -170,6 +171,11 @@ async def post_chat_message(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "CHAT_SESSION_NOT_FOUND"},
         )
+    if await billing.would_exceed_llm_limit(TenantId(ctx.tenant_id)):
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={"code": "USAGE_LIMIT_EXCEEDED", "message": "Credit limit reached. Upgrade or wait for the next period."},
+        )
     lang_resolved = resolved_lang(lang, accept_language)
     try:
         result = await service.send_message(
@@ -186,6 +192,11 @@ async def post_chat_message(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "CHAT_SESSION_NOT_FOUND"},
+            ) from e
+        if str(e) == "USAGE_LIMIT_EXCEEDED":
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail={"code": "USAGE_LIMIT_EXCEEDED", "message": "Credit limit reached."},
             ) from e
         raise
     if stream:
