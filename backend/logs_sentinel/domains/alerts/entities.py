@@ -61,4 +61,3 @@ class AlertEvent:
     rule_id: AlertRuleId
     triggered_at: datetime
     payload_json: dict[str, Any]
-

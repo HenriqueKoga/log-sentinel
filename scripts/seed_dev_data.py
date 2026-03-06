@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from logs_sentinel.domains.identity.entities import Role
+from logs_sentinel.domains.ingestion.entities import hash_ingest_token
 from logs_sentinel.infrastructure.db.base import Base, SessionFactory, engine
 from logs_sentinel.infrastructure.db.models import (
     IngestTokenModel,
@@ -40,10 +41,11 @@ async def main() -> None:
         session.add_all([membership, project])
         await session.flush()
 
+        raw_token = "dev-token-change-me"
         token = IngestTokenModel(
             tenant_id=tenant.id,
             project_id=project.id,
-            token_hash="dev-token-change-me",
+            token_hash=hash_ingest_token(raw_token),
             last_used_at=None,
             revoked_at=None,
         )
@@ -53,9 +55,8 @@ async def main() -> None:
         print("Seeded tenant 'Acme Logs'")
         print("User: owner@example.com (set a real password in DB for dev)")
         print(f"Project: Acme Backend (id={project.id})")
-        print(f"Ingestion token (use as X-Project-Token): dev-token-change-me")
+        print(f"Ingestion token (use as X-Project-Token): {raw_token}")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-

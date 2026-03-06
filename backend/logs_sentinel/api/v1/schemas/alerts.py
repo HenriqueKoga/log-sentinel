@@ -60,5 +60,3 @@ class AlertEventResponse(BaseModel):
     rule_id: int
     triggered_at: datetime
     payload: dict[str, object]
-
-

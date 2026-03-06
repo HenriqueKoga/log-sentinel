@@ -1,118 +1,90 @@
 from __future__ import annotations
 
-from asyncio import TaskGroup
-from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from logs_sentinel.domains.ai.entities import IssueEnrichment, IssueEnrichmentId, LLMClientProtocol
+from logs_sentinel.domains.ai.entities import IssueEnrichment
+from logs_sentinel.domains.ai.repositories import IssueEnrichmentRepository
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.issues.entities import IssueId
-from logs_sentinel.infrastructure.db.models import IssueEnrichmentModel, LogEventModel
+from logs_sentinel.domains.issues.repositories import IssueRepository
+from logs_sentinel.domains.logs.entities import LogEventForTenant
+from logs_sentinel.domains.logs.repositories import LogsRepository
 
 
 class AIEnrichmentService:
-    """Application service orchestrating AI enrichment for issues."""
+    """Application service for issue enrichment: load events and persist enrichment data."""
 
     def __init__(
         self,
-        session: AsyncSession,
-        llm_client: LLMClientProtocol,
+        enrichment_repo: IssueEnrichmentRepository,
+        logs_repo: LogsRepository,
+        issue_repo: IssueRepository,
     ) -> None:
-        self._session = session
-        self._llm = llm_client
+        self._enrichment_repo = enrichment_repo
+        self._logs_repo = logs_repo
+        self._issue_repo = issue_repo
+
+    async def get_log_event_for_tenant(
+        self, tenant_id: TenantId, log_id: int
+    ) -> LogEventForTenant | None:
+        """Return a single log event by id if it belongs to the tenant, else None."""
+        return await self._logs_repo.get_log_event_for_tenant(int(tenant_id), log_id)
 
     async def get_latest_enrichment(
         self,
         tenant_id: TenantId,
         issue_id: IssueId,
     ) -> IssueEnrichment | None:
-        stmt = (
-            select(IssueEnrichmentModel)
-            .where(
-                IssueEnrichmentModel.tenant_id == int(tenant_id),
-                IssueEnrichmentModel.issue_id == int(issue_id),
-            )
-            .order_by(IssueEnrichmentModel.created_at.desc())
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        row = result.scalar_one_or_none()
-        if row is None:
-            return None
-        model: IssueEnrichmentModel = row
-        return IssueEnrichment(
-            id=IssueEnrichmentId(model.id),
-            tenant_id=TenantId(model.tenant_id),
-            issue_id=IssueId(model.issue_id),
-            model_name=model.model_name,
-            summary=model.summary,
-            suspected_cause=model.suspected_cause,
-            checklist_json=model.checklist_json,
-            created_at=model.created_at,
-        )
+        return await self._enrichment_repo.get_latest_enrichment(tenant_id, issue_id)
 
-    async def enrich_issue(
+    async def get_events_for_issue(
         self,
         tenant_id: TenantId,
         issue_id: IssueId,
-    ) -> IssueEnrichment:
-        """Generate and persist a new enrichment for the given issue."""
-
-        now = datetime.now(tz=UTC)
-
-        async def _fetch_events() -> Sequence[dict[str, object]]:
-            stmt = (
-                select(LogEventModel)
-                .where(
-                    LogEventModel.tenant_id == int(tenant_id),
-                    # Filter by project via join on issues if needed later.
-                )
-                .order_by(LogEventModel.received_at.desc())
-                .limit(50)
-            )
-            result = await self._session.execute(stmt)
-            events: list[dict[str, object]] = []
-            for row in result.scalars().all():
-                ev: LogEventModel = row
-                events.append(
-                    {
-                        "received_at": ev.received_at.isoformat(),
-                        "level": ev.level,
-                        "message": ev.message,
-                        "exception_type": ev.exception_type or "",
-                    }
-                )
-            return events
-
-        async with TaskGroup() as tg:
-            events_task = tg.create_task(_fetch_events())
-
-        events = events_task.result()
-        enrichment = await self._llm.enrich_issue(events)
-
-        model = IssueEnrichmentModel(
+        log_id: int | None = None,
+    ) -> list[LogEventForTenant]:
+        """Load event data for an issue (for LLM enrichment). Raises ValueError(ISSUE_NOT_FOUND), LOG_NOT_FOUND, LOG_NOT_IN_ISSUE."""
+        issue = await self._issue_repo.get_by_id(tenant_id, issue_id)
+        if issue is None:
+            raise ValueError("ISSUE_NOT_FOUND")
+        events = await self._logs_repo.get_log_events_by_fingerprint(
             tenant_id=int(tenant_id),
-            issue_id=int(issue_id),
-            model_name=enrichment.model_name,
-            summary=enrichment.summary,
-            suspected_cause=enrichment.suspected_cause,
-            checklist_json=enrichment.checklist_json,
-            created_at=now,
+            project_id=int(issue.project_id),
+            fingerprint=issue.fingerprint,
+            limit=20,
+            log_id_hint=log_id,
         )
-        self._session.add(model)
-        await self._session.flush()
+        if not events:
+            now = datetime.now(tz=UTC)
+            events = [
+                LogEventForTenant(
+                    id=0,
+                    project_id=int(issue.project_id),
+                    message=issue.title,
+                    exception_type=None,
+                    stacktrace=None,
+                    level="error",
+                    received_at=now,
+                )
+            ]
+        return events
 
-        return IssueEnrichment(
-            id=IssueEnrichmentId(model.id),
-            tenant_id=TenantId(model.tenant_id),
-            issue_id=IssueId(model.issue_id),
-            model_name=model.model_name,
-            summary=model.summary,
-            suspected_cause=model.suspected_cause,
-            checklist_json=model.checklist_json,
-            created_at=model.created_at,
+    async def persist_enrichment(
+        self,
+        tenant_id: TenantId,
+        issue_id: IssueId,
+        *,
+        model_name: str,
+        summary: str,
+        suspected_cause: str,
+        checklist_json: list[str],
+    ) -> IssueEnrichment:
+        """Persist enrichment data for an issue and return the created IssueEnrichment."""
+        return await self._enrichment_repo.persist_enrichment(
+            tenant_id=tenant_id,
+            issue_id=issue_id,
+            model_name=model_name,
+            summary=summary,
+            suspected_cause=suspected_cause,
+            checklist_json=checklist_json,
         )
-

@@ -19,8 +19,7 @@ from logs_sentinel.domains.issues.repositories import IssueOccurrencesRepository
 class NotificationSender(Protocol):
     """Abstraction for sending alert notifications."""
 
-    async def send_alert(self, tenant_id: TenantId, rule: AlertRule, issue: Issue) -> None:
-        ...
+    async def send_alert(self, tenant_id: TenantId, rule: AlertRule, issue: Issue) -> None: ...
 
 
 class AlertsService:
@@ -115,4 +114,3 @@ class AlertsService:
             return count >= rule.threshold
 
         return False
-

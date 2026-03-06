@@ -1,19 +1,29 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useMemo } from "react";
 import { ThemeProvider as MuiThemeProvider, createTheme } from "@mui/material/styles";
-
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#9c27b0",
-    },
-  },
-});
+import { ThemeModeContext, type ThemeMode } from "./themeModeContext";
 
 export const ThemeProvider = ({ children }: PropsWithChildren) => {
-  return <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>;
+  const mode: ThemeMode = "dark";
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode,
+          primary: { main: "#7aa2ff" },
+          secondary: { main: "#bda6ff" },
+        },
+        shape: { borderRadius: 10 },
+      }),
+    [],
+  );
+
+  const value = useMemo(() => ({ mode, toggle: () => {} }), []);
+
+  return (
+    <ThemeModeContext.Provider value={value}>
+      <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>
+    </ThemeModeContext.Provider>
+  );
 };
 

@@ -1,0 +1,89 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { http } from "../../shared/api/http";
+
+export type FixSuggestion = {
+  fingerprint: string;
+  title: string;
+  summary: string;
+  probable_cause: string;
+  suggested_fix: string;
+  code_snippet: string | null;
+  language: string | null;
+  confidence: number;
+  occurrences: number;
+  first_seen: string;
+  last_seen: string;
+  sample_event_id: number | null;
+};
+
+export type FixSuggestionsResponse = {
+  items: FixSuggestion[];
+};
+
+export type FixSuggestionsParams = {
+  project_id?: number;
+  from?: string;
+  to?: string;
+  lang: string;
+};
+
+export function useFixSuggestions(params: FixSuggestionsParams) {
+  const { project_id, from, to, lang } = params;
+
+  return useQuery({
+    queryKey: ["ai-fix-suggestions", project_id, from, to, lang],
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      if (project_id != null) searchParams.set("project_id", String(project_id));
+      if (from) searchParams.set("from", from);
+      if (to) searchParams.set("to", to);
+      if (lang) searchParams.set("lang", lang);
+
+      const { data } = await http.get<FixSuggestionsResponse>(
+        `/api/v1/ai-insights/fix-suggestions?${searchParams.toString()}`,
+      );
+      return data;
+    },
+  });
+}
+
+export type AnalyzeFixSuggestionParams = {
+  fingerprint: string;
+  project_id?: number;
+  from?: string;
+  to?: string;
+  lang: string;
+};
+
+export function useAnalyzeFixSuggestion(params: FixSuggestionsParams) {
+  const queryClient = useQueryClient();
+  const { project_id, from, to, lang } = params;
+
+  return useMutation({
+    mutationFn: async (body: { fingerprint: string; project_id?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (body.project_id != null) searchParams.set("project_id", String(body.project_id));
+      if (from) searchParams.set("from", from);
+      if (to) searchParams.set("to", to);
+      if (lang) searchParams.set("lang", lang);
+      const { data } = await http.post<FixSuggestion>(
+        `/api/v1/ai-insights/fix-suggestions/analyze?${searchParams.toString()}`,
+        { fingerprint: body.fingerprint, project_id: body.project_id ?? null },
+      );
+      return data;
+    },
+    onSuccess: (updated) => {
+      const queryKey = ["ai-fix-suggestions", project_id, from, to, lang];
+      queryClient.setQueryData<FixSuggestionsResponse>(queryKey, (prev) => {
+        if (!prev) return prev;
+        return {
+          items: prev.items.map((s) =>
+            s.fingerprint === updated.fingerprint ? updated : s,
+          ),
+        };
+      });
+    },
+  });
+}
+

@@ -104,6 +104,9 @@ class DummyJWTEncoder:
     def encode(self, payload: dict[str, object], expires_delta: timedelta) -> str:
         return f"jwt-{payload['type']}-{payload['sub']}"
 
+    def decode(self, token: str) -> dict[str, object]:
+        return {"type": "access", "sub": "1"}
+
 
 @pytest.mark.asyncio
 async def test_signup_and_login_issue_tokens() -> None:
@@ -120,7 +123,9 @@ async def test_signup_and_login_issue_tokens() -> None:
         jwt_encoder=jwt_encoder,
     )
 
-    signup_input = SignUpInput(tenant_name="Acme Logs", email="owner@example.com", password="secret123")
+    signup_input = SignUpInput(
+        tenant_name="Acme Logs", email="owner@example.com", password="secret123"
+    )
     tokens = await service.sign_up(signup_input)
     assert tokens.access_token.startswith("jwt-access-")
     assert tokens.refresh_token.startswith("jwt-refresh-")
@@ -128,4 +133,3 @@ async def test_signup_and_login_issue_tokens() -> None:
     login_input = LoginInput(email="owner@example.com", password="secret123")
     tokens2 = await service.login(login_input)
     assert tokens2.access_token.startswith("jwt-access-")
-

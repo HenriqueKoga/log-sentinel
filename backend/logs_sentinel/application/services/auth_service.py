@@ -19,8 +19,9 @@ from logs_sentinel.infrastructure.settings.config import settings
 class JWTEncoder(Protocol):
     """Abstraction for JWT encode/decode operations."""
 
-    def encode(self, payload: dict[str, object], expires_delta: timedelta) -> str:
-        ...
+    def encode(self, payload: dict[str, object], expires_delta: timedelta) -> str: ...
+
+    def decode(self, token: str) -> dict[str, object]: ...
 
 
 class AuthService:
@@ -77,6 +78,36 @@ class AuthService:
 
         return await self._issue_tokens(auth_user)
 
+    async def refresh(self, refresh_token: str) -> AuthTokens:
+        """Validate a refresh token and rotate tokens."""
+
+        try:
+            payload = self._jwt.decode(refresh_token)
+        except Exception:
+            raise ValueError("AUTH_REFRESH_INVALID") from None
+
+        token_type = payload.get("type")
+        if token_type != "refresh":
+            raise ValueError("AUTH_REFRESH_INVALID")
+
+        refresh_id = payload.get("jti")
+        sub = payload.get("sub")
+        if not refresh_id or not sub:
+            raise ValueError("AUTH_REFRESH_INVALID")
+
+        try:
+            user_id_int = int(str(sub))
+        except TypeError, ValueError:
+            raise ValueError("AUTH_REFRESH_INVALID") from None
+
+        from logs_sentinel.domains.identity.entities import UserId  # avoid circular import at top
+
+        auth_user = await self._membership_repo.get_primary_membership(UserId(user_id_int))
+        if not auth_user:
+            raise ValueError("AUTH_REFRESH_SUBJECT_NOT_FOUND")
+
+        return await self.refresh_tokens(str(refresh_id), auth_user)
+
     async def refresh_tokens(self, refresh_token_id: str, user: AuthenticatedUser) -> AuthTokens:
         """Rotate refresh token if still active."""
 
@@ -125,4 +156,3 @@ class AuthService:
         )
 
         return AuthTokens(access_token=access_token, refresh_token=refresh_token)
-

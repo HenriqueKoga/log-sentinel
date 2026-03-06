@@ -157,4 +157,3 @@ async def test_issue_upsert_and_priority() -> None:
     assert int(issue2.id) == int(issue1.id)
     assert issue2.total_count == 2
     assert issue2.priority_score >= issue1.priority_score
-

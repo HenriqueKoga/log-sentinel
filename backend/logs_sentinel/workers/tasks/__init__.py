@@ -5,4 +5,3 @@ Re-exports tasks from submodules so Celery can refer to
 """
 
 from .ingest import process_ingest_batch as process_ingest_batch
-

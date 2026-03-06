@@ -33,5 +33,5 @@ async def get_session() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency that yields an async database session."""
 
     async with SessionFactory() as session:
-        yield session
-
+        async with session.begin():
+            yield session

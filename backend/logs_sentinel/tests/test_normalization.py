@@ -19,4 +19,3 @@ def test_compute_fingerprint_stable_for_equivalent_messages() -> None:
     fp1 = compute_fingerprint(m1, exception_type="ValueError", stack_frames=["a", "b"])
     fp2 = compute_fingerprint(m2, exception_type="ValueError", stack_frames=["a", "b"])
     assert fp1 == fp2
-

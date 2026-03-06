@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from argon2 import PasswordHasher
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logs_sentinel.api.v1.schemas.auth import (
@@ -60,7 +60,9 @@ async def get_auth_service(
     from logs_sentinel.infrastructure.auth.jwt import RedisRefreshTokenStore
 
     refresh_store: RefreshTokenStore = RedisRefreshTokenStore(redis_client)
-    return _build_auth_service(session=session, jwt_encoder=jwt_encoder, refresh_store=refresh_store)
+    return _build_auth_service(
+        session=session, jwt_encoder=jwt_encoder, refresh_store=refresh_store
+    )
 
 
 @router.post(
@@ -126,12 +128,26 @@ async def login(
 )
 async def refresh(
     payload: RefreshRequest,
-    response: Response,
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> TokenPairResponse:
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={"code": "AUTH_REFRESH_NOT_IMPLEMENTED"},
+    try:
+        tokens = await service.refresh(payload.refresh_token)
+    except ValueError as exc:
+        code = str(exc)
+        if code in {
+            "AUTH_REFRESH_INVALID",
+            "AUTH_REFRESH_REVOKED",
+            "AUTH_REFRESH_SUBJECT_NOT_FOUND",
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": code},
+            ) from None
+        raise
+    return TokenPairResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
     )
 
 
@@ -141,4 +157,3 @@ async def refresh(
 )
 async def logout() -> None:
     return None
-

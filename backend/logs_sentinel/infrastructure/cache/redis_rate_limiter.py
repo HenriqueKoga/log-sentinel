@@ -4,6 +4,9 @@ from datetime import timedelta
 from typing import cast
 
 import redis.asyncio as redis
+import redis.exceptions as redis_exceptions
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
 
 
 class RedisRateLimiter:
@@ -27,7 +30,14 @@ class RedisRateLimiter:
 
 
 def create_redis_client(url: str) -> redis.Redis:
-    """Create a shared async Redis client."""
-    client = redis.from_url(url, encoding="utf-8", decode_responses=True)  # type: ignore[no-untyped-call]
+    """Create a shared async Redis client with retry on connection errors (e.g. reset by peer)."""
+    client = redis.from_url(
+        url,
+        encoding="utf-8",
+        decode_responses=True,
+        socket_connect_timeout=5,
+        retry_on_timeout=True,
+        retry=Retry(ExponentialBackoff(), 3),
+        retry_on_error=[redis_exceptions.ConnectionError, OSError],
+    )  # type: ignore[no-untyped-call]
     return cast(redis.Redis, client)
-

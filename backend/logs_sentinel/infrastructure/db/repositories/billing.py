@@ -47,6 +47,7 @@ class TenantPlanRepositorySQLAlchemy(TenantPlanRepository):
             starts_at=model.starts_at,
             ends_at=model.ends_at,
             status=PlanStatus(model.status),
+            enable_llm_enrichment=model.enable_llm_enrichment,
         )
 
     async def create_plan(
@@ -54,6 +55,7 @@ class TenantPlanRepositorySQLAlchemy(TenantPlanRepository):
         tenant_id: TenantId,
         plan_type: str,
         starts_at: datetime,
+        enable_llm_enrichment: bool = False,
     ) -> TenantPlan:
         model = TenantPlanModel(
             tenant_id=int(tenant_id),
@@ -61,6 +63,7 @@ class TenantPlanRepositorySQLAlchemy(TenantPlanRepository):
             starts_at=starts_at,
             ends_at=None,
             status=PlanStatus.ACTIVE.value,
+            enable_llm_enrichment=enable_llm_enrichment,
         )
         self._session.add(model)
         await self._session.flush()
@@ -71,7 +74,24 @@ class TenantPlanRepositorySQLAlchemy(TenantPlanRepository):
             starts_at=model.starts_at,
             ends_at=model.ends_at,
             status=PlanStatus(model.status),
+            enable_llm_enrichment=enable_llm_enrichment,
         )
+
+    async def set_plan_llm_enrichment(self, tenant_id: TenantId, enable: bool) -> None:
+        stmt = (
+            select(TenantPlanModel)
+            .where(
+                TenantPlanModel.tenant_id == int(tenant_id),
+                TenantPlanModel.status == PlanStatus.ACTIVE.value,
+            )
+            .order_by(TenantPlanModel.starts_at.desc())
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is not None:
+            row.enable_llm_enrichment = enable
+            await self._session.flush()
 
 
 class UsageCounterRepositorySQLAlchemy(UsageCounterRepository):
@@ -102,6 +122,8 @@ class UsageCounterRepositorySQLAlchemy(UsageCounterRepository):
             period_start=model.period_start,
             period=UsagePeriod(model.period),
             events_ingested=model.events_ingested,
+            llm_enrichments=model.llm_enrichments,
+            credits_used=model.credits_used,
         )
 
     async def increment_counter(
@@ -109,13 +131,19 @@ class UsageCounterRepositorySQLAlchemy(UsageCounterRepository):
         tenant_id: TenantId,
         period_start: datetime,
         period: UsagePeriod,
-        delta: int,
+        events_delta: int,
+        llm_delta: int,
+        credits_delta: int,
     ) -> UsageCounter:
-        stmt = select(UsageCounterModel).where(
-            UsageCounterModel.tenant_id == int(tenant_id),
-            UsageCounterModel.period_start == period_start,
-            UsageCounterModel.period == period.value,
-        ).limit(1)
+        stmt = (
+            select(UsageCounterModel)
+            .where(
+                UsageCounterModel.tenant_id == int(tenant_id),
+                UsageCounterModel.period_start == period_start,
+                UsageCounterModel.period == period.value,
+            )
+            .limit(1)
+        )
         result = await self._session.execute(stmt)
         row = result.scalar_one_or_none()
         if row is None:
@@ -123,12 +151,16 @@ class UsageCounterRepositorySQLAlchemy(UsageCounterRepository):
                 tenant_id=int(tenant_id),
                 period_start=period_start,
                 period=period.value,
-                events_ingested=delta,
+                events_ingested=events_delta,
+                llm_enrichments=llm_delta,
+                credits_used=credits_delta,
             )
             self._session.add(model)
         else:
             model = row
-            model.events_ingested += delta
+            model.events_ingested += events_delta
+            model.llm_enrichments += llm_delta
+            model.credits_used += credits_delta
         await self._session.flush()
         return UsageCounter(
             id=UsageCounterId(model.id),
@@ -136,5 +168,6 @@ class UsageCounterRepositorySQLAlchemy(UsageCounterRepository):
             period_start=model.period_start,
             period=UsagePeriod(model.period),
             events_ingested=model.events_ingested,
+            llm_enrichments=model.llm_enrichments,
+            credits_used=model.credits_used,
         )
-

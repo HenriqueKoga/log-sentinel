@@ -42,15 +42,17 @@ class TenantPlan:
     starts_at: datetime
     ends_at: datetime | None
     status: PlanStatus
+    enable_llm_enrichment: bool
 
 
 @dataclass(slots=True)
 class UsageCounter:
-    """Aggregated usage for a tenant and period."""
+    """Aggregated usage for a tenant and period (credits = billing unit)."""
 
     id: UsageCounterId
     tenant_id: TenantId
     period_start: datetime
     period: UsagePeriod
     events_ingested: int
-
+    llm_enrichments: int
+    credits_used: int

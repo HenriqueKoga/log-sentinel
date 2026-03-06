@@ -18,8 +18,7 @@ class IssueRepository(Protocol):
         tenant_id: TenantId,
         project_id: ProjectId,
         fingerprint: str,
-    ) -> Issue | None:
-        ...
+    ) -> Issue | None: ...
 
     async def create_issue(
         self,
@@ -29,11 +28,9 @@ class IssueRepository(Protocol):
         title: str,
         severity: str,
         occurred_at: datetime,
-    ) -> Issue:
-        ...
+    ) -> Issue: ...
 
-    async def save(self, issue: Issue) -> Issue:
-        ...
+    async def save(self, issue: Issue) -> Issue: ...
 
     async def list_issues(
         self,
@@ -45,11 +42,10 @@ class IssueRepository(Protocol):
         until: datetime | None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Sequence[Issue]:
-        ...
+        sort_by: str = "priority",
+    ) -> Sequence[Issue]: ...
 
-    async def get_by_id(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None:
-        ...
+    async def get_by_id(self, tenant_id: TenantId, issue_id: IssueId) -> Issue | None: ...
 
 
 class IssueOccurrencesRepository(Protocol):
@@ -62,8 +58,7 @@ class IssueOccurrencesRepository(Protocol):
         bucket_start: datetime,
         bucket_minutes: int,
         increment: int,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def list_buckets(
         self,
@@ -72,6 +67,4 @@ class IssueOccurrencesRepository(Protocol):
         bucket_minutes: int,
         since: datetime,
         until: datetime,
-    ) -> Sequence[IssueOccurrenceBucket]:
-        ...
-
+    ) -> Sequence[IssueOccurrenceBucket]: ...

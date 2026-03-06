@@ -20,4 +20,3 @@ class IngestBatchRequest(BaseModel):
 class IngestBatchResponse(BaseModel):
     batch_id: str
     accepted_count: int
-

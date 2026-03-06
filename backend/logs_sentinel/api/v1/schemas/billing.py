@@ -23,6 +23,7 @@ class BillingPlanResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime | None
     limit: int | None
+    enable_llm_enrichment: bool = False
 
 
 class BillingUsageResponse(BaseModel):
@@ -30,4 +31,9 @@ class BillingUsageResponse(BaseModel):
     period_start: datetime
     used: int
     limit: int | None
+    events_ingested: int = 0
+    llm_enrichments: int = 0
 
+
+class SettingsUpdateRequest(BaseModel):
+    enable_llm_enrichment: bool

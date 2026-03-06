@@ -82,4 +82,3 @@ def compute_priority_score(
     }
     severity_weight = severity_weight_map[severity]
     return severity_weight * log1p(count_last_hour) * spike_factor
-

@@ -66,25 +66,40 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Middleware
     app.add_middleware(MetricsMiddleware)
 
-    # CORS for frontend SPA (dev + configurable origin from settings)
-    cors_origins: list[str] = [str(origin) for origin in settings.frontend_dev_origins]
-    if settings.frontend_origin:
-        origin_str = str(settings.frontend_origin)
-        if origin_str not in cors_origins:
-            cors_origins.append(origin_str)
+    # CORS for frontend SPA. In local/dev allow any origin so preflight (OPTIONS) never returns 400.
+    if settings.environment in ("local", "dev"):
+        cors_origins: list[str] = ["*"]
+        allow_credentials = False
+    else:
+        cors_origins = [str(o) for o in settings.frontend_dev_origins]
+        if settings.frontend_origin:
+            origin_str = str(settings.frontend_origin)
+            if origin_str not in cors_origins:
+                cors_origins.append(origin_str)
+        allow_credentials = True
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
-        allow_credentials=True,
+        allow_credentials=allow_credentials,
     )
 
-    from logs_sentinel.api.v1.routers import alerts, auth, billing, ingest, issues, projects
+    from logs_sentinel.api.v1.routers import (
+        ai_insights,
+        alerts,
+        auth,
+        billing,
+        chat,
+        ingest,
+        issues,
+        logs,
+        metrics,
+        projects,
+    )
 
     app.include_router(auth.router, prefix="/api/v1")
     app.include_router(projects.router, prefix="/api/v1")
@@ -92,9 +107,13 @@ def create_app() -> FastAPI:
     app.include_router(alerts.router, prefix="/api/v1")
     app.include_router(billing.router, prefix="/api/v1")
     app.include_router(ingest.router, prefix="/api/v1")
+    app.include_router(logs.router, prefix="/api/v1")
+    app.include_router(metrics.router, prefix="/api/v1")
+    app.include_router(ai_insights.router, prefix="/api/v1")
+    app.include_router(chat.router, prefix="/api/v1")
 
     @app.get("/metrics")
-    async def metrics() -> Response:
+    async def serve_metrics() -> Response:
         return await metrics_endpoint()
 
     @app.get("/health", tags=["internal"])
@@ -105,4 +124,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

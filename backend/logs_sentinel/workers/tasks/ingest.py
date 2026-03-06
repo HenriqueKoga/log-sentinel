@@ -71,4 +71,3 @@ def process_ingest_batch(payload: dict[str, Any]) -> None:
             await session.commit()
 
     asyncio.run(_run())
-
