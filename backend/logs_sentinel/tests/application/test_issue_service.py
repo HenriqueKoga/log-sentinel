@@ -1,3 +1,5 @@
+"""Tests for IssueService (record_occurrence, upsert, priority)."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -11,6 +13,7 @@ from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
 from logs_sentinel.domains.issues.entities import Issue, IssueId, IssueSeverity, IssueStatus
 from logs_sentinel.domains.issues.repositories import IssueOccurrencesRepository, IssueRepository
+from logs_sentinel.domains.projects.repositories import ProjectRepository
 
 
 class InMemoryIssueRepo(IssueRepository):
@@ -194,3 +197,118 @@ async def test_issue_upsert_and_priority() -> None:
     assert int(issue2.id) == int(issue1.id)
     assert issue2.total_count == 2
     assert issue2.priority_score >= issue1.priority_score
+
+
+@pytest.mark.asyncio
+async def test_list_issues() -> None:
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets)
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    now = datetime.now(tz=UTC)
+    inp = NewOccurrenceInput(
+        message="Err",
+        exception_type="ValueError",
+        stacktrace="x",
+        severity=IssueSeverity.HIGH,
+        occurred_at=now,
+    )
+    await service.record_occurrence(tenant_id, project_id, inp)
+    issues = await service.list_issues(tenant_id, project_id, None, None, None, None, 50, 0)
+    assert len(issues) == 1
+    assert issues[0].fingerprint
+
+
+@pytest.mark.asyncio
+async def test_get_issue() -> None:
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets)
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    now = datetime.now(tz=UTC)
+    inp = NewOccurrenceInput(
+        message="Err",
+        exception_type="ValueError",
+        stacktrace="x",
+        severity=IssueSeverity.HIGH,
+        occurred_at=now,
+    )
+    created = await service.record_occurrence(tenant_id, project_id, inp)
+    got = await service.get_issue(tenant_id, created.id)
+    assert got is not None
+    assert got.id == created.id
+    assert await service.get_issue(tenant_id, IssueId(999)) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_issue() -> None:
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets)
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    now = datetime.now(tz=UTC)
+    created = await service.record_occurrence(
+        tenant_id,
+        project_id,
+        NewOccurrenceInput("Err", "ValueError", "x", IssueSeverity.HIGH, now),
+    )
+    ok = await service.delete_issue(tenant_id, created.id)
+    assert ok is True
+    assert await service.get_issue(tenant_id, created.id) is None
+    assert await service.delete_issue(tenant_id, IssueId(999)) is False
+
+
+@pytest.mark.asyncio
+async def test_create_issue_manual() -> None:
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets)
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    issue = await service.create_issue_manual(
+        tenant_id=tenant_id,
+        project_id=project_id,
+        title="Manual issue",
+        severity=IssueSeverity.MEDIUM,
+    )
+    assert issue.title == "Manual issue"
+    assert issue.severity == IssueSeverity.MEDIUM
+    assert issue.total_count == 1
+    assert len(issue.fingerprint) == 64
+
+
+@pytest.mark.asyncio
+async def test_ensure_project_accessible_raises_when_no_project_repo() -> None:
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets, project_repo=None)
+    with pytest.raises(ValueError) as exc:
+        await service.ensure_project_accessible(TenantId(1), ProjectId(1))
+    assert exc.value.args[0] == "PROJECT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_ensure_project_accessible_raises_when_project_not_found() -> None:
+    from logs_sentinel.domains.projects.entities import Project
+
+    class EmptyProjectRepo(ProjectRepository):
+        async def get_project(
+            self, tenant_id: TenantId, project_id: ProjectId
+        ) -> Project | None:
+            return None
+
+        async def list_projects(self, tenant_id: TenantId) -> list[Project]:
+            return []
+
+        async def create_project(self, tenant_id: TenantId, name: str) -> Project:
+            raise NotImplementedError
+
+    repo = InMemoryIssueRepo()
+    buckets = InMemoryBucketsRepo()
+    service = IssueService(repo, buckets, project_repo=EmptyProjectRepo())
+    with pytest.raises(ValueError) as exc:
+        await service.ensure_project_accessible(TenantId(1), ProjectId(1))
+    assert exc.value.args[0] == "PROJECT_NOT_FOUND"

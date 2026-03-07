@@ -51,7 +51,7 @@ class InMemoryTokenRepo(IngestTokenRepository):
         raise NotImplementedError
 
     async def revoke_token(self, tenant_id: TenantId, token_id: IngestTokenId) -> None:
-        raise NotImplementedError
+        pass
 
 
 class InMemoryLogEventRepo(LogsRepository):
@@ -94,7 +94,6 @@ class InMemoryLogEventRepo(LogsRepository):
         return None
 
     async def get_log_event_for_tenant(self, tenant_id: int, log_id: int) -> None:
-        # Not needed for these tests
         return None
 
     async def get_log_events_by_fingerprint(
@@ -105,7 +104,6 @@ class InMemoryLogEventRepo(LogsRepository):
         limit: int = 20,
         log_id_hint: int | None = None,
     ) -> list[LogEventForTenant]:
-        # Not needed for these tests
         return []
 
 

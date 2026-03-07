@@ -139,3 +139,58 @@ async def test_billing_raises_when_limit_exceeded(monkeypatch: pytest.MonkeyPatc
     with pytest.raises(ValueError) as exc:
         await service.check_and_increment(tenant_id=tenant_id, events=1)
     assert str(exc.value) == "USAGE_LIMIT_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_is_llm_enabled_when_plan_has_llm() -> None:
+    plans = InMemoryTenantPlanRepo()
+    usage = InMemoryUsageCounterRepo()
+    service = BillingService(plans_repo=plans, usage_repo=usage)
+    tenant_id = TenantId(1)
+    await plans.create_plan(
+        tenant_id=tenant_id,
+        plan_type="monthly",
+        starts_at=datetime.now(),
+        enable_llm_enrichment=True,
+    )
+    assert await service.is_llm_enabled(tenant_id) is True
+
+
+@pytest.mark.asyncio
+async def test_is_llm_enabled_false_when_no_plan() -> None:
+    plans = InMemoryTenantPlanRepo()
+    usage = InMemoryUsageCounterRepo()
+    service = BillingService(plans_repo=plans, usage_repo=usage)
+    assert await service.is_llm_enabled(TenantId(1)) is False
+
+
+@pytest.mark.asyncio
+async def test_record_llm_usage_raises_when_limit_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+    from logs_sentinel.infrastructure.settings import config as config_module
+
+    plans = InMemoryTenantPlanRepo()
+    usage = InMemoryUsageCounterRepo()
+    await plans.create_plan(
+        tenant_id=TenantId(1),
+        plan_type="monthly",
+        starts_at=datetime.now(),
+        enable_llm_enrichment=True,
+    )
+    monkeypatch.setattr(config_module.settings, "default_plan", "monthly", raising=False)
+    monkeypatch.setattr(config_module.settings, "monthly_credits_limit", 1, raising=False)
+    monkeypatch.setattr(config_module.settings, "credits_per_llm_enrichment", 10, raising=False)
+    service = BillingService(plans_repo=plans, usage_repo=usage)
+    with pytest.raises(ValueError) as exc:
+        await service.record_llm_usage(TenantId(1))
+    assert str(exc.value) == "USAGE_LIMIT_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_get_usage_summary() -> None:
+    plans = InMemoryTenantPlanRepo()
+    usage = InMemoryUsageCounterRepo()
+    service = BillingService(plans_repo=plans, usage_repo=usage)
+    tenant_id = TenantId(1)
+    summary = await service.get_usage_summary(tenant_id)
+    assert summary.tenant_id == tenant_id
+    assert summary.used == 0
