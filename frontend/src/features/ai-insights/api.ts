@@ -68,7 +68,7 @@ export type AnalyzeFixSuggestionParams = {
 
 export function useAnalyzeFixSuggestion(params: FixSuggestionsParams) {
   const queryClient = useQueryClient();
-  const { project_id, from, to, lang } = params;
+  const { from, to, lang } = params;
 
   return useMutation({
     mutationFn: async (body: { fingerprint: string; project_id?: number }) => {
