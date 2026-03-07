@@ -35,6 +35,13 @@ async def get_fix_suggestions(
     to: Annotated[datetime | None, Query()] = None,
     lang: Annotated[str | None, Query(description="Language code such as 'pt-BR' or 'en'")] = None,
     accept_language: Annotated[str | None, Header(convert_underscores=False)] = None,
+    sort_by: Annotated[
+        str,
+        Query(description="Sort field: occurrences, last_seen, first_seen, confidence, title"),
+    ] = "occurrences",
+    order: Annotated[str, Query(description="Sort order: asc or desc")] = "desc",
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=50, description="Items per page")] = 10,
 ) -> FixSuggestionsResponse:
     tenant_id = int(ctx.tenant_id)
     lang_resolved = resolved_lang(lang, accept_language)
@@ -44,7 +51,12 @@ async def get_fix_suggestions(
         from_dt=from_,
         to_dt=to,
         lang=lang_resolved,
+        sort_by=sort_by,
+        order=order,
     )
+    total = len(suggestions)
+    start = (page - 1) * page_size
+    page_items = suggestions[start : start + page_size]
     items = [
         FixSuggestionOut(
             fingerprint=s.fingerprint,
@@ -59,10 +71,11 @@ async def get_fix_suggestions(
             first_seen=s.first_seen,
             last_seen=s.last_seen,
             sample_event_id=s.sample_event_id,
+            analyzed=s.analyzed,
         )
-        for s in suggestions
+        for s in page_items
     ]
-    return FixSuggestionsResponse(items=items)
+    return FixSuggestionsResponse(items=items, total=total)
 
 
 @router.post("/fix-suggestions/analyze", response_model=FixSuggestionOut)
@@ -158,5 +171,6 @@ async def analyze_fix_suggestion(
         first_seen=suggestion.first_seen,
         last_seen=suggestion.last_seen,
         sample_event_id=suggestion.sample_event_id,
+        analyzed=suggestion.analyzed,
     )
 

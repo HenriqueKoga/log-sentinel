@@ -30,6 +30,7 @@ class InsightSuggestion:
     first_seen: datetime
     last_seen: datetime
     sample_event_id: int | None
+    analyzed: bool = False
 
 
 @dataclass(slots=True)

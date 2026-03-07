@@ -221,17 +221,29 @@
     "fixSuggestions": {
       "title": "Sugestões de correção",
       "subtitle": "Agrupamos erros recorrentes e sugerimos causas e correções com heurísticas/LLM.",
+      "period": "Período",
+      "range24H": "24h",
+      "range7D": "7d",
+      "range30D": "30d",
+      "analyzedByAi": "Analisado pela IA",
+      "occurrences": "Ocorrências",
+      "sortBy": "Ordenar por",
+      "sortOccurrences": "Ocorrências",
+      "order": "Ordem",
+      "orderAsc": "Ascendente",
+      "orderDesc": "Descendente",
       "columns": {
         "error": "Erro",
         "summary": "Resumo",
         "occurrences": "Ocorrências",
         "firstSeen": "Primeira ocorrência",
         "lastSeen": "Última ocorrência",
-      "confidence": "Confiança",
-      "actions": "Ações"
+        "confidence": "Confiança",
+        "actions": "Ações"
       },
       "causeLabel": "Causa provável",
       "fixLabel": "Sugestão de correção",
+      "codeLabel": "Código",
       "analyzeWithAi": "Analisar com IA",
       "analyzing": "Analisando…",
       "empty": "Nenhum cluster de erro recorrente encontrado para este período."
