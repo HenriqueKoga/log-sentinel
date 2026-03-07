@@ -97,7 +97,7 @@ class AuthService:
 
         try:
             user_id_int = int(str(sub))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             raise ValueError("AUTH_REFRESH_INVALID") from None
 
         from logs_sentinel.domains.identity.entities import UserId  # avoid circular import at top

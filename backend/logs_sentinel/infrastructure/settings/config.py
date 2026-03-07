@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     broker_url: str = "amqp://guest:guest@rabbitmq:5672//"
     celery_result_backend: str = "redis://redis:6379/1"
 
-    jwt_secret_key: str = "dev-secret-change-me"
+    jwt_secret_key: str = "dev-secret-change-in-production-32bytes!!"
     jwt_algorithm: str = "HS256"
     access_token_exp_minutes: int = 15
     refresh_token_exp_days: int = 7

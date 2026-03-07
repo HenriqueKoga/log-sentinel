@@ -1,3 +1,5 @@
+"""Tests for AlertsService (evaluate_rules_for_issue)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -221,3 +223,115 @@ async def test_alert_evaluation_fires_when_threshold_met() -> None:
     assert len(events) == 1
     assert len(events_repo.events) == 1
     assert len(sender.sent) == 1
+
+
+@pytest.mark.asyncio
+async def test_alert_evaluation_does_not_fire_when_below_threshold() -> None:
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    issue = Issue(
+        id=IssueId(1),
+        tenant_id=tenant_id,
+        project_id=project_id,
+        fingerprint="fp",
+        title="Error",
+        severity=IssueSeverity.HIGH,
+        status=IssueStatus.OPEN,
+        first_seen=datetime.now(tz=UTC),
+        last_seen=datetime.now(tz=UTC),
+        total_count=2,
+        priority_score=1.0,
+    )
+    rule = AlertRule(
+        id=AlertRuleId(1),
+        tenant_id=tenant_id,
+        project_id=project_id,
+        name="High errors in 5m",
+        kind=AlertKind.COUNT_5M,
+        threshold=10,
+        enabled=True,
+    )
+    rules_repo = InMemoryRuleRepo([rule])
+    events_repo = InMemoryEventRepo()
+    channels_repo = InMemoryChannelRepo()
+    occurrences_repo = InMemoryOccurrencesRepo()
+    sender = DummySender()
+    now = datetime.now(tz=UTC)
+    occurrences_repo.seed_bucket(
+        tenant_id=tenant_id,
+        issue_id=issue.id,
+        bucket_start=now - timedelta(minutes=1),
+        bucket_minutes=5,
+        count=3,
+    )
+    service = AlertsService(
+        rules_repo=rules_repo,
+        events_repo=events_repo,
+        channels_repo=channels_repo,
+        occurrences_repo=occurrences_repo,
+        sender=sender,
+    )
+    events = await service.evaluate_rules_for_issue(
+        tenant_id=tenant_id,
+        project_id=project_id,
+        issue=issue,
+        now=now,
+    )
+    assert len(events) == 0
+    assert len(sender.sent) == 0
+
+
+@pytest.mark.asyncio
+async def test_alert_evaluation_skips_disabled_rule() -> None:
+    tenant_id = TenantId(1)
+    project_id = ProjectId(1)
+    issue = Issue(
+        id=IssueId(1),
+        tenant_id=tenant_id,
+        project_id=project_id,
+        fingerprint="fp",
+        title="Error",
+        severity=IssueSeverity.HIGH,
+        status=IssueStatus.OPEN,
+        first_seen=datetime.now(tz=UTC),
+        last_seen=datetime.now(tz=UTC),
+        total_count=10,
+        priority_score=5.0,
+    )
+    rule = AlertRule(
+        id=AlertRuleId(1),
+        tenant_id=tenant_id,
+        project_id=project_id,
+        name="Disabled rule",
+        kind=AlertKind.COUNT_5M,
+        threshold=1,
+        enabled=False,
+    )
+    rules_repo = InMemoryRuleRepo([rule])
+    events_repo = InMemoryEventRepo()
+    channels_repo = InMemoryChannelRepo()
+    occurrences_repo = InMemoryOccurrencesRepo()
+    sender = DummySender()
+    now = datetime.now(tz=UTC)
+    occurrences_repo.seed_bucket(
+        tenant_id=tenant_id,
+        issue_id=issue.id,
+        bucket_start=now - timedelta(minutes=1),
+        bucket_minutes=5,
+        count=10,
+    )
+    service = AlertsService(
+        rules_repo=rules_repo,
+        events_repo=events_repo,
+        channels_repo=channels_repo,
+        occurrences_repo=occurrences_repo,
+        sender=sender,
+    )
+    events = await service.evaluate_rules_for_issue(
+        tenant_id=tenant_id,
+        project_id=project_id,
+        issue=issue,
+        now=now,
+    )
+    assert len(events) == 0
+    assert len(sender.sent) == 0
