@@ -10,6 +10,9 @@ import { FixSuggestion, useAnalyzeFixSuggestion, useFixSuggestions } from "./api
 
 type RangeKey = "24h" | "7d" | "30d";
 
+type SortBy = "occurrences" | "last_seen" | "first_seen" | "confidence" | "title";
+type SortOrder = "asc" | "desc";
+
 const RANGE_OPTIONS: { key: RangeKey; days: number }[] = [
   { key: "24h", days: 1 },
   { key: "7d", days: 7 },
@@ -20,6 +23,8 @@ export function FixSuggestionsPage() {
   const { t, i18n } = useTranslation();
   const [projectId, setProjectId] = useState<number | "">("");
   const [range, setRange] = useState<RangeKey>("7d");
+  const [sortBy, setSortBy] = useState<SortBy>("occurrences");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [selected, setSelected] = useState<FixSuggestion | null>(null);
@@ -43,8 +48,12 @@ export function FixSuggestionsPage() {
       from,
       to,
       lang: i18n.language || "pt-BR",
+      sort_by: sortBy,
+      order: sortOrder,
+      page,
+      page_size: pageSize,
     }),
-    [projectId, from, to, i18n.language],
+    [projectId, from, to, i18n.language, sortBy, sortOrder, page, pageSize],
   );
   const suggestionsQuery = useFixSuggestions(queryParams);
   const analyzeMutation = useAnalyzeFixSuggestion(queryParams);
@@ -58,9 +67,9 @@ export function FixSuggestionsPage() {
   }
 
   const items = suggestionsQuery.data?.items ?? [];
+  const total = suggestionsQuery.data?.total ?? 0;
   const llmEnabled = billingPlan.data?.enable_llm_enrichment ?? false;
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="flex max-h-[calc(100vh-7rem)] min-h-0 flex-col">
@@ -95,21 +104,52 @@ export function FixSuggestionsPage() {
         <TextField
           select
           size="small"
-          label={t("issues.range")}
+          label={t("ai.fixSuggestions.period", "Period")}
           value={range}
           onChange={(e) => setRange(e.target.value as RangeKey)}
           sx={{ minWidth: 140 }}
         >
           {RANGE_OPTIONS.map((opt) => (
             <MenuItem key={opt.key} value={opt.key}>
-              {t(`issues.range${opt.key.toUpperCase()}` as const)}
+              {t(`ai.fixSuggestions.range${opt.key.toUpperCase()}` as const)}
             </MenuItem>
           ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label={t("ai.fixSuggestions.sortBy", "Sort by")}
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value as SortBy);
+            setPage(1);
+          }}
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="occurrences">{t("ai.fixSuggestions.sortOccurrences", "Occurrences")}</MenuItem>
+          <MenuItem value="last_seen">{t("ai.fixSuggestions.columns.lastSeen", "Last seen")}</MenuItem>
+          <MenuItem value="first_seen">{t("ai.fixSuggestions.columns.firstSeen", "First seen")}</MenuItem>
+          <MenuItem value="confidence">{t("ai.fixSuggestions.columns.confidence", "Confidence")}</MenuItem>
+          <MenuItem value="title">{t("ai.fixSuggestions.columns.error", "Error")}</MenuItem>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label={t("ai.fixSuggestions.order", "Order")}
+          value={sortOrder}
+          onChange={(e) => {
+            setSortOrder(e.target.value as SortOrder);
+            setPage(1);
+          }}
+          sx={{ minWidth: 120 }}
+        >
+          <MenuItem value="desc">{t("ai.fixSuggestions.orderDesc", "Descending")}</MenuItem>
+          <MenuItem value="asc">{t("ai.fixSuggestions.orderAsc", "Ascending")}</MenuItem>
         </TextField>
       </div>
 
       <div className="mt-4 flex flex-col">
-        <div className="h-[calc(100vh-14rem)] min-h-[300px] overflow-auto rounded-2xl border border-white/5 bg-black/30">
+        <div className="h-[600px] overflow-auto rounded-2xl border border-white/5 bg-black/30">
           <table className="min-w-full text-sm">
             <thead className="sticky top-0 bg-black/60 backdrop-blur">
               <tr>
@@ -134,7 +174,7 @@ export function FixSuggestionsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedItems.map((s) => (
+              {items.map((s) => (
                 <tr
                   key={s.fingerprint}
                   className="cursor-pointer border-t border-white/5 hover:bg-white/5"
@@ -166,9 +206,16 @@ export function FixSuggestionsPage() {
                     {new Date(s.last_seen).toLocaleString()}
                   </td>
                   <td className="px-3 py-2 align-middle text-xs">
-                    <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
-                      {(s.confidence * 100).toFixed(0)}%
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
+                        {(s.confidence * 100).toFixed(0)}%
+                      </span>
+                      {s.analyzed && (
+                        <span className="inline-flex rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] text-violet-300" title={t("ai.fixSuggestions.analyzedByAi", "Analyzed by AI")}>
+                          AI
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -189,7 +236,7 @@ export function FixSuggestionsPage() {
           </table>
         </div>
         <div className="mt-3 flex flex-shrink-0 justify-end">
-          {items.length > 0 && (
+          {total > 0 && (
             <Pagination
               count={totalPages}
               page={page}
@@ -216,7 +263,7 @@ export function FixSuggestionsPage() {
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-slate-200 hover:border-white/40 hover:bg-black/80"
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/60 text-slate-200 hover:border-white/40 hover:bg-black/80"
                 aria-label={t("common.cancel", "Close")}
               >
                 <CloseIcon fontSize="small" />
@@ -252,7 +299,7 @@ export function FixSuggestionsPage() {
               {selected.code_snippet && (
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Code
+                    {t("ai.fixSuggestions.codeLabel", "Code")}
                   </h3>
                   <pre className="mt-1 max-h-64 overflow-auto rounded-lg bg-black/60 p-3 text-xs text-slate-100">
                     {selected.code_snippet}
@@ -262,42 +309,47 @@ export function FixSuggestionsPage() {
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                {t("ai.fixSuggestions.columns.confidence", "Confidence")}:{" "}
-                <span className="font-semibold text-emerald-300">
-                  {(selected.confidence * 100).toFixed(0)}%
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-400">
+                  {t("ai.fixSuggestions.columns.confidence", "Confidence")}:{" "}
+                  <span className="font-semibold text-emerald-300">
+                    {(selected.confidence * 100).toFixed(0)}%
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                disabled={
-                  !llmEnabled ||
-                  analyzeMutation.isPending ||
-                  analyzeMutation.data?.fingerprint === selected.fingerprint
-                }
-                onClick={() => {
-                  analyzeMutation.mutate(
-                    {
-                      fingerprint: selected.fingerprint,
-                      project_id: projectId === "" ? undefined : projectId,
-                    },
-                    {
-                      onSuccess: (updated) => {
-                        setSelected(updated);
+                {selected.analyzed && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-violet-300">
+                    ✦ {t("ai.fixSuggestions.analyzedByAi", "Analyzed by AI")}
+                  </span>
+                )}
+              </div>
+              {!selected.analyzed && (
+                <button
+                  type="button"
+                  disabled={!llmEnabled || analyzeMutation.isPending}
+                  onClick={() => {
+                    analyzeMutation.mutate(
+                      {
+                        fingerprint: selected.fingerprint,
+                        project_id: projectId === "" ? undefined : projectId,
                       },
-                    },
-                  );
-                }}
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
-                  !llmEnabled || analyzeMutation.data?.fingerprint === selected.fingerprint
-                    ? "cursor-not-allowed bg-white/5 text-slate-500"
-                    : "cursor-pointer bg-primary/30 text-slate-100 hover:bg-primary/40"
-                }`}
-              >
-                {analyzeMutation.isPending
-                  ? t("ai.fixSuggestions.analyzing", "Analyzing…")
-                  : t("ai.fixSuggestions.analyzeWithAi", "Analyze with AI")}
-              </button>
+                      {
+                        onSuccess: (updated) => {
+                          setSelected(updated);
+                        },
+                      },
+                    );
+                  }}
+                  className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
+                    !llmEnabled
+                      ? "cursor-not-allowed bg-white/5 text-slate-500"
+                      : "cursor-pointer bg-primary/30 text-slate-100 hover:bg-primary/40"
+                  }`}
+                >
+                  {analyzeMutation.isPending
+                    ? t("ai.fixSuggestions.analyzing", "Analyzing…")
+                    : t("ai.fixSuggestions.analyzeWithAi", "Analyze with AI")}
+                </button>
+              )}
             </div>
           </div>
         </div>

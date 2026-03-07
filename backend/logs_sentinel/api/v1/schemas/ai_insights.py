@@ -23,8 +23,10 @@ class FixSuggestionOut(BaseModel):
     first_seen: datetime
     last_seen: datetime
     sample_event_id: int | None = None
+    analyzed: bool = False
 
 
 class FixSuggestionsResponse(BaseModel):
     items: list[FixSuggestionOut]
+    total: int
 

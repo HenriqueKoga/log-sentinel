@@ -34,8 +34,10 @@ class FixSuggestionsService:
         project_id: int | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
-        limit_clusters: int = 20,
+        limit_clusters: int = 100,
         lang: str = "pt-BR",
+        sort_by: str = "occurrences",
+        order: str = "desc",
     ) -> list[InsightSuggestion]:
         """List fix suggestions using heuristics only (no LLM)."""
         rows = await self._log_search.recent_errors(
@@ -112,11 +114,27 @@ class FixSuggestionsService:
                                 first_seen=s.first_seen,
                                 last_seen=s.last_seen,
                                 sample_event_id=s.sample_event_id,
+                                analyzed=True,
                             )
                         )
                     else:
                         merged.append(s)
-                return merged
+                suggestions = merged
+
+        reverse = order.lower() == "desc"
+        if sort_by == "occurrences":
+            suggestions.sort(key=lambda s: s.occurrences, reverse=reverse)
+        elif sort_by == "confidence":
+            suggestions.sort(key=lambda s: s.confidence, reverse=reverse)
+        elif sort_by == "title":
+            suggestions.sort(key=lambda s: s.title.lower(), reverse=reverse)
+        elif sort_by == "first_seen":
+            suggestions.sort(key=lambda s: s.first_seen, reverse=reverse)
+        elif sort_by == "last_seen":
+            suggestions.sort(key=lambda s: s.last_seen, reverse=reverse)
+        else:
+            suggestions.sort(key=lambda s: s.occurrences, reverse=reverse)
+
         return suggestions
 
     async def get_cluster_events(
@@ -171,6 +189,7 @@ class FixSuggestionsService:
             first_seen=first.received_at,
             last_seen=last.received_at,
             sample_event_id=int(last.id),
+            analyzed=True,
         )
         if self._analysis_repo:
             await self._analysis_repo.upsert(

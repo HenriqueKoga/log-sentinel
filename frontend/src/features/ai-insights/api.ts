@@ -15,10 +15,12 @@ export type FixSuggestion = {
   first_seen: string;
   last_seen: string;
   sample_event_id: number | null;
+  analyzed: boolean;
 };
 
 export type FixSuggestionsResponse = {
   items: FixSuggestion[];
+  total: number;
 };
 
 export type FixSuggestionsParams = {
@@ -26,19 +28,27 @@ export type FixSuggestionsParams = {
   from?: string;
   to?: string;
   lang: string;
+  sort_by?: string;
+  order?: string;
+  page?: number;
+  page_size?: number;
 };
 
 export function useFixSuggestions(params: FixSuggestionsParams) {
-  const { project_id, from, to, lang } = params;
+  const { project_id, from, to, lang, sort_by = "occurrences", order = "desc", page = 1, page_size = 10 } = params;
 
   return useQuery({
-    queryKey: ["ai-fix-suggestions", project_id, from, to, lang],
+    queryKey: ["ai-fix-suggestions", project_id, from, to, lang, sort_by, order, page, page_size],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (project_id != null) searchParams.set("project_id", String(project_id));
       if (from) searchParams.set("from", from);
       if (to) searchParams.set("to", to);
       if (lang) searchParams.set("lang", lang);
+      searchParams.set("sort_by", sort_by);
+      searchParams.set("order", order);
+      searchParams.set("page", String(page));
+      searchParams.set("page_size", String(page_size));
 
       const { data } = await http.get<FixSuggestionsResponse>(
         `/api/v1/ai-insights/fix-suggestions?${searchParams.toString()}`,
@@ -73,16 +83,8 @@ export function useAnalyzeFixSuggestion(params: FixSuggestionsParams) {
       );
       return data;
     },
-    onSuccess: (updated) => {
-      const queryKey = ["ai-fix-suggestions", project_id, from, to, lang];
-      queryClient.setQueryData<FixSuggestionsResponse>(queryKey, (prev) => {
-        if (!prev) return prev;
-        return {
-          items: prev.items.map((s) =>
-            s.fingerprint === updated.fingerprint ? updated : s,
-          ),
-        };
-      });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["ai-fix-suggestions"] });
     },
   });
 }

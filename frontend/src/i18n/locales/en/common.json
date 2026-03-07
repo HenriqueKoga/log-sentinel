@@ -221,17 +221,29 @@
     "fixSuggestions": {
       "title": "Fix suggestions",
       "subtitle": "We group recurring errors and suggest causes and fixes using heuristics/LLM.",
+      "period": "Period",
+      "range24H": "24h",
+      "range7D": "7d",
+      "range30D": "30d",
+      "analyzedByAi": "Analyzed by AI",
+      "occurrences": "Occurrences",
+      "sortBy": "Sort by",
+      "sortOccurrences": "Occurrences",
+      "order": "Order",
+      "orderAsc": "Ascending",
+      "orderDesc": "Descending",
       "columns": {
         "error": "Error",
         "summary": "Summary",
         "occurrences": "Occurrences",
         "firstSeen": "First seen",
         "lastSeen": "Last seen",
-      "confidence": "Confidence",
-      "actions": "Actions"
+        "confidence": "Confidence",
+        "actions": "Actions"
       },
       "causeLabel": "Probable cause",
       "fixLabel": "Suggested fix",
+      "codeLabel": "Code",
       "analyzeWithAi": "Analyze with AI",
       "analyzing": "Analyzing…",
       "empty": "No recurring error clusters found for this period."
