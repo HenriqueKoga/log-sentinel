@@ -105,7 +105,7 @@ class IngestionService:
             raise ValueError("INGEST_EMPTY_BATCH")
 
         if self._usage_checker is not None:
-            await self._usage_checker.check_and_increment(
+            await self._usage_checker.increment_events(
                 tenant_id=token.tenant_id,
                 events=len(events),
             )

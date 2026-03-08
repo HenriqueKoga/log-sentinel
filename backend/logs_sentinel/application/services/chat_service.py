@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.application.services.chat_tools_service import ChatToolsService
+from logs_sentinel.domains.billing.entities import LlmFeature
 from logs_sentinel.domains.chat.entities import ChatMessage, ChatSession
 from logs_sentinel.domains.chat.repositories import (
     ChatMessageRepository,
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
 
 
 class ChatService:
-    """Log Chat orchestration: sessions, messages, Pydantic AI agent with tools (streaming)."""
-
     def __init__(
         self,
         session_repo: ChatSessionRepository,
@@ -39,100 +38,37 @@ class ChatService:
         self._billing = billing_service
         self._title_agent = title_agent
 
-    async def create_session(
-        self,
-        *,
-        tenant_id: int,
-        user_id: int,
-        project_id: int | None,
-        title: str = "",
-    ) -> ChatSession:
-        return await self._session_repo.create(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            project_id=project_id,
-            title=title or "",
-        )
+    async def create_session(self, *, tenant_id: int, user_id: int, project_id: int | None, title: str = "") -> ChatSession:
+        return await self._session_repo.create(tenant_id=tenant_id, user_id=user_id, project_id=project_id, title=title or "")
 
-    async def list_sessions(
-        self,
-        *,
-        tenant_id: int,
-        user_id: int,
-        project_id: int | None,
-        limit: int = 50,
-    ) -> list[ChatSession]:
-        return list(
-            await self._session_repo.list_sessions(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                project_id=project_id,
-                limit=limit,
-            )
-        )
+    async def list_sessions(self, *, tenant_id: int, user_id: int, project_id: int | None, limit: int = 50) -> list[ChatSession]:
+        return list(await self._session_repo.list_sessions(tenant_id=tenant_id, user_id=user_id, project_id=project_id, limit=limit))
 
-    async def get_session(
-        self, session_id: int, tenant_id: int, user_id: int
-    ) -> ChatSession | None:
-        return await self._session_repo.get_by_id(
-            session_id=session_id, tenant_id=tenant_id, user_id=user_id
-        )
+    async def get_session(self, session_id: int, tenant_id: int, user_id: int) -> ChatSession | None:
+        return await self._session_repo.get_by_id(session_id=session_id, tenant_id=tenant_id, user_id=user_id)
 
-    async def delete_session(
-        self, session_id: int, tenant_id: int, user_id: int
-    ) -> bool:
-        return await self._session_repo.delete(
-            session_id=session_id, tenant_id=tenant_id, user_id=user_id
-        )
+    async def delete_session(self, session_id: int, tenant_id: int, user_id: int) -> bool:
+        return await self._session_repo.delete(session_id=session_id, tenant_id=tenant_id, user_id=user_id)
 
-    async def get_messages(
-        self, session_id: int, tenant_id: int, user_id: int
-    ) -> list[ChatMessage]:
-        return list(
-            await self._message_repo.get_messages(
-                session_id=session_id, tenant_id=tenant_id, user_id=user_id
-            )
-        )
+    async def get_messages(self, session_id: int, tenant_id: int, user_id: int) -> list[ChatMessage]:
+        return list(await self._message_repo.get_messages(session_id=session_id, tenant_id=tenant_id, user_id=user_id))
 
     async def send_message(
-        self,
-        session_id: int,
-        tenant_id: int,
-        user_id: int,
-        project_id: int | None,
-        content: str,
-        lang: str = "pt-BR",
-        stream: bool = False,
+        self, session_id: int, tenant_id: int, user_id: int, project_id: int | None,
+        content: str, lang: str = "pt-BR", stream: bool = False,
     ) -> ChatMessage | AsyncIterator[str]:
         session = await self._session_repo.get_by_id(session_id, tenant_id, user_id)
         if session is None:
             raise ValueError("SESSION_NOT_FOUND")
-        await self._message_repo.add_message(
-            session_id=session_id,
-            role="user",
-            content=content,
-        )
-        return await self._reply_with_llm(
-            session=session,
-            project_id=project_id,
-            content=content,
-            lang=lang,
-            stream=stream,
-        )
+        if self._billing and await self._billing.would_exceed_credit_limit(TenantId(tenant_id)):
+            raise ValueError("CREDIT_LIMIT_EXCEEDED")
+        await self._message_repo.add_message(session_id=session_id, role="user", content=content)
+        return await self._reply_with_llm(session=session, project_id=project_id, content=content, lang=lang, stream=stream)
 
     async def _reply_with_llm(
-        self,
-        session: ChatSession,
-        project_id: int | None,
-        content: str,
-        lang: str,
-        stream: bool,
+        self, session: ChatSession, project_id: int | None, content: str, lang: str, stream: bool,
     ) -> ChatMessage | AsyncIterator[str]:
-        history = await self._message_repo.get_messages(
-            session_id=session.id,
-            tenant_id=session.tenant_id,
-            user_id=session.user_id,
-        )
+        history = await self._message_repo.get_messages(session_id=session.id, tenant_id=session.tenant_id, user_id=session.user_id)
         history_lines: list[str] = []
         for m in history:
             if m.role == "user":
@@ -142,42 +78,45 @@ class ChatService:
         history_text = "\n".join(history_lines) if history_lines else ""
 
         deps = ChatAgentDeps(
-            tenant_id=session.tenant_id,
-            project_id=project_id,
-            tools=self._tools,
-            history_text=history_text,
-            lang=lang,
+            tenant_id=session.tenant_id, project_id=project_id,
+            tools=self._tools, history_text=history_text, lang=lang,
         )
 
         if stream:
             return self._stream_agent_reply(session, content, deps)
         return await self._run_agent_and_persist(session, content, deps)
 
-    async def _run_agent_and_persist(
-        self,
-        session: ChatSession,
-        content: str,
-        deps: ChatAgentDeps,
-    ) -> ChatMessage:
+    async def _record_usage(
+        self, session: ChatSession, feature: str, model_name: str, input_tokens: int, output_tokens: int,
+    ) -> None:
+        if self._billing:
+            await self._billing.record_llm_usage(
+                tenant_id=TenantId(session.tenant_id),
+                feature_name=feature,
+                model_name=model_name,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                project_id=session.project_id,
+                user_id=session.user_id,
+            )
+
+    async def _run_agent_and_persist(self, session: ChatSession, content: str, deps: ChatAgentDeps) -> ChatMessage:
         result = await self._agent.run(content, deps=deps)
         full_content = (result.output or "").strip() or "Não consegui gerar uma resposta."
-        if self._billing:
-            await self._billing.record_llm_usage(TenantId(session.tenant_id))
-        msg = await self._message_repo.add_message(
-            session_id=session.id,
-            role="assistant",
-            content=full_content,
+        usage = result.usage()
+        await self._record_usage(
+            session, LlmFeature.LOG_CHAT,
+            result.response.model_name or "gpt-4o-mini",
+            usage.input_tokens or 0 if usage else 0,
+            usage.output_tokens or 0 if usage else 0,
         )
+        msg = await self._message_repo.add_message(session_id=session.id, role="assistant", content=full_content)
         await self._maybe_update_session_title(session, content)
         return msg
 
-    async def _stream_agent_reply(
-        self,
-        session: ChatSession,
-        content: str,
-        deps: ChatAgentDeps,
-    ) -> AsyncIterator[str]:
+    async def _stream_agent_reply(self, session: ChatSession, content: str, deps: ChatAgentDeps) -> AsyncIterator[str]:
         full_content_parts: list[str] = []
+        stream_model_name = "gpt-4o-mini"
         async with self._agent.run_stream(content, deps=deps) as streamed:
             try:
                 async for chunk in streamed.stream_text(delta=True):
@@ -185,32 +124,36 @@ class ChatService:
                     yield f"data: {json.dumps({'delta': chunk})}\n\n"
             except Exception:
                 pass
+            usage = streamed.usage()
+            for msg in reversed(streamed.all_messages()):
+                if hasattr(msg, "model_name") and msg.model_name:
+                    stream_model_name = msg.model_name
+                    break
         full_content = "".join(full_content_parts).strip() or "Não consegui gerar uma resposta."
-        if self._billing:
-            await self._billing.record_llm_usage(TenantId(session.tenant_id))
-        assistant_msg = await self._message_repo.add_message(
-            session_id=session.id,
-            role="assistant",
-            content=full_content,
+        await self._record_usage(
+            session, LlmFeature.LOG_CHAT, stream_model_name,
+            usage.input_tokens or 0 if usage else 0,
+            usage.output_tokens or 0 if usage else 0,
         )
+        assistant_msg = await self._message_repo.add_message(session_id=session.id, role="assistant", content=full_content)
         await self._maybe_update_session_title(session, content)
         yield f"data: {json.dumps({'done': True, 'message_id': assistant_msg.id})}\n\n"
 
-    async def _maybe_update_session_title(
-        self, session: ChatSession, first_user_message: str
-    ) -> None:
-        """If session has no title and title agent is available, generate and persist one."""
+    async def _maybe_update_session_title(self, session: ChatSession, first_user_message: str) -> None:
         if not session.title.strip() and self._title_agent is not None:
             try:
                 result = await self._title_agent.run(first_user_message)
                 if result.output and result.output.title.strip():
                     await self._session_repo.update_title(
-                        session_id=session.id,
-                        tenant_id=session.tenant_id,
-                        user_id=session.user_id,
-                        title=result.output.title.strip(),
+                        session_id=session.id, tenant_id=session.tenant_id,
+                        user_id=session.user_id, title=result.output.title.strip(),
                     )
-                    if self._billing:
-                        await self._billing.record_llm_usage(TenantId(session.tenant_id))
+                    usage = result.usage()
+                    await self._record_usage(
+                        session, LlmFeature.CHAT_TITLE,
+                        result.response.model_name or "gpt-4o-mini",
+                        usage.input_tokens or 0 if usage else 0,
+                        usage.output_tokens or 0 if usage else 0,
+                    )
             except Exception:
                 pass

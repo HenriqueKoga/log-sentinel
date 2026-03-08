@@ -50,10 +50,6 @@ class Settings(BaseSettings):
     )
 
     default_plan: Literal["monthly", "yearly", "unlimited"] = "monthly"
-    credits_per_event: int = 1
-    credits_per_llm_enrichment: int = 10
-    monthly_credits_limit: int = 1_000_000
-    yearly_credits_limit: int = 12_000_000
 
 
 @lru_cache(maxsize=1)

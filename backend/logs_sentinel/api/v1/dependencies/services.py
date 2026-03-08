@@ -33,6 +33,9 @@ from logs_sentinel.infrastructure.db.repositories.ai_insights import (
     FixSuggestionAnalysisRepositorySQLAlchemy,
 )
 from logs_sentinel.infrastructure.db.repositories.billing import (
+    CreditPolicyRepositorySQLAlchemy,
+    LlmModelRepositorySQLAlchemy,
+    LlmUsageRepositorySQLAlchemy,
     TenantPlanRepositorySQLAlchemy,
     UsageCounterRepositorySQLAlchemy,
 )
@@ -62,9 +65,13 @@ from logs_sentinel.infrastructure.settings.config import settings
 async def get_billing_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> BillingService:
-    plans_repo = TenantPlanRepositorySQLAlchemy(session)
-    usage_repo = UsageCounterRepositorySQLAlchemy(session)
-    return BillingService(plans_repo=plans_repo, usage_repo=usage_repo)
+    return BillingService(
+        plans_repo=TenantPlanRepositorySQLAlchemy(session),
+        usage_repo=UsageCounterRepositorySQLAlchemy(session),
+        llm_model_repo=LlmModelRepositorySQLAlchemy(session),
+        llm_usage_repo=LlmUsageRepositorySQLAlchemy(session),
+        credit_policy_repo=CreditPolicyRepositorySQLAlchemy(session),
+    )
 
 
 async def get_issue_service(
@@ -127,9 +134,10 @@ async def get_ingestion_service(
     token_repo = IngestTokenRepositorySQLAlchemy(session)
     log_repo = LogsRepositorySQLAlchemy(session)
     queue = CeleryIngestQueue()
-    plans_repo = TenantPlanRepositorySQLAlchemy(session)
-    usage_repo = UsageCounterRepositorySQLAlchemy(session)
-    billing = BillingService(plans_repo=plans_repo, usage_repo=usage_repo)
+    billing = BillingService(
+        plans_repo=TenantPlanRepositorySQLAlchemy(session),
+        usage_repo=UsageCounterRepositorySQLAlchemy(session),
+    )
     return IngestionService(
         token_repo=token_repo,
         log_repo=log_repo,

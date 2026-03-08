@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line } from "recharts";
 import { ErrorState, LoadingState } from "../../shared/components/States";
 import { getErrorMessage } from "../../shared/api/errors";
-import { useBillingUsage } from "../billing/api";
+import { useCreditBar } from "../billing/api";
 import { useDashboardMetrics } from "./api";
 import { useIssues } from "../issues/api";
 import { useProjects } from "../projects/api";
@@ -24,11 +24,11 @@ export const DashboardPage = () => {
 
   const projects = useProjects();
   const issues = useIssues({ page: 1, pageSize: 50 });
-  const usage = useBillingUsage();
+  const creditBar = useCreditBar();
   const metrics = useDashboardMetrics(chartMinutes);
 
-  const loading = projects.isLoading || issues.isLoading || usage.isLoading;
-  const error = projects.error ?? issues.error ?? usage.error;
+  const loading = projects.isLoading || issues.isLoading || creditBar.isLoading;
+  const error = projects.error ?? issues.error ?? creditBar.error;
 
   const logVolumeData = metrics.data?.log_volume ?? [];
   const errorRateData = metrics.data?.error_rate ?? [];
@@ -68,11 +68,34 @@ export const DashboardPage = () => {
           onClick={() => navigate("/billing")}
           className="cursor-pointer rounded-2xl border border-white/5 bg-gradient-to-br from-amber-500/10 to-white/0 p-4 text-left transition-colors hover:border-white/10"
         >
-          <p className="text-xs uppercase tracking-wide text-slate-400">{t("dashboard.usage")}</p>
-          <p className="mt-2 text-2xl font-semibold text-amber-300">
-            {formatNumber(usage.data?.used ?? 0)}
-          </p>
-          <p className="mt-2 text-xs text-primary">{t("dashboard.viewBilling")}</p>
+          <p className="text-xs uppercase tracking-wide text-slate-400">{t("dashboard.credits")}</p>
+          {creditBar.data ? (
+            <>
+              <p className="mt-2 text-lg font-semibold text-amber-300">
+                {creditBar.data.credits_used.toFixed(1)}{" "}
+                <span className="text-sm font-normal text-slate-500">
+                  / {formatNumber(creditBar.data.credits_limit)}
+                </span>
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    creditBar.data.percentage >= 90
+                      ? "bg-red-500"
+                      : creditBar.data.percentage >= 70
+                        ? "bg-amber-400"
+                        : "bg-emerald-400"
+                  }`}
+                  style={{ width: `${Math.min(creditBar.data.percentage, 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {creditBar.data.percentage.toFixed(1)}% {t("dashboard.ofLimit")}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-2xl font-semibold text-amber-300">—</p>
+          )}
         </button>
         <button
           type="button"
