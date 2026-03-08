@@ -9,7 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from logs_sentinel.api.v1.dependencies.auth import TenantContext, get_tenant_context
-from logs_sentinel.api.v1.routers import billing as billing_router
+from logs_sentinel.api.v1.dependencies.services import get_billing_service
 from logs_sentinel.infrastructure.db.base import get_session
 from logs_sentinel.tests.factories import create_tenant
 
@@ -48,7 +48,6 @@ async def test_get_plan_returns_200(seeded_billing: tuple[AsyncEngine, int]) -> 
     data = response.json()
     assert "plan_type" in data
     assert "status" in data
-    assert "limit" in data
     assert "enable_llm_enrichment" in data
 
     app.dependency_overrides.clear()
@@ -77,10 +76,39 @@ async def test_get_usage_returns_200(seeded_billing: tuple[AsyncEngine, int]) ->
     assert response.status_code == 200
     data = response.json()
     assert "plan_type" in data
-    assert "used" in data
-    assert "limit" in data
     assert "events_ingested" in data
     assert "llm_enrichments" in data
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_credit_bar_returns_200(seeded_billing: tuple[AsyncEngine, int]) -> None:
+    from logs_sentinel.domains.identity.entities import Role, TenantId, UserId
+    from logs_sentinel.main import create_app
+
+    db_engine, tenant_id = seeded_billing
+    app = create_app()
+
+    async def override_get_session() -> AsyncGenerator[AsyncSession]:
+        async with AsyncSession(db_engine, expire_on_commit=False) as session:
+            yield session
+
+    def override_get_tenant_context() -> TenantContext:
+        return TenantContext(tenant_id=TenantId(tenant_id), user_id=UserId(1), role=Role.OWNER)
+
+    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_tenant_context] = override_get_tenant_context
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.get("/api/v1/billing/plan", headers={"Authorization": "Bearer skip"})
+        response = await client.get("/api/v1/billing/credit-bar", headers={"Authorization": "Bearer skip"})
+    assert response.status_code == 200
+    data = response.json()
+    assert "credits_used" in data
+    assert "credits_limit" in data
+    assert "percentage" in data
+    assert data["percentage"] >= 0
 
     app.dependency_overrides.clear()
 
@@ -126,7 +154,7 @@ async def test_update_settings_returns_400_when_no_plan(seeded_billing: tuple[As
 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_tenant_context] = override_get_tenant_context
-    app.dependency_overrides[billing_router.get_billing_service] = override_get_billing_service
+    app.dependency_overrides[get_billing_service] = override_get_billing_service
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.patch(

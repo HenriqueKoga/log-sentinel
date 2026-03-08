@@ -38,6 +38,7 @@ from logs_sentinel.api.v1.schemas.issues import (
 from logs_sentinel.application.services.ai_service import AIEnrichmentService
 from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.application.services.issue_service import IssueService
+from logs_sentinel.domains.billing.entities import LlmFeature
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.domains.ingestion.entities import ProjectId
 from logs_sentinel.domains.ingestion.normalization import compute_fingerprint, normalize_message
@@ -139,6 +140,12 @@ async def suggest_issue(
     tenant_id: TenantId = ctx.tenant_id
     use_llm = await billing.is_llm_enabled(tenant_id)
 
+    if use_llm and await billing.would_exceed_credit_limit(tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "CREDIT_LIMIT_EXCEEDED", "message": "Monthly credit limit reached."},
+        )
+
     if use_llm:
         try:
             from logs_sentinel.infrastructure.agents.suggest_issue import (
@@ -157,15 +164,14 @@ async def suggest_issue(
                     detail={"code": "LLM_RATE_LIMIT", "message": "AI rate limit exceeded. Please try again in a moment."},
                 ) from e
             raise
-        try:
-            await billing.record_llm_usage(tenant_id)
-        except ValueError as e:
-            if str(e) == "USAGE_LIMIT_EXCEEDED":
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={"code": "USAGE_LIMIT_EXCEEDED"},
-                ) from e
-            raise
+        usage = run_result.usage()
+        await billing.record_llm_usage(
+            tenant_id=tenant_id,
+            feature_name=LlmFeature.ISSUE_SUGGEST,
+            model_name=run_result.response.model_name or "gpt-4o-mini",
+            input_tokens=usage.input_tokens or 0 if usage else 0,
+            output_tokens=usage.output_tokens or 0 if usage else 0,
+        )
     else:
         title = (body.context[:200].strip() if body.context else "").strip() or "Manual issue"
         severity = "medium"
@@ -246,6 +252,13 @@ async def create_issue_from_log(
             detail={"code": "ISSUE_ALREADY_EXISTS", "issue_id": int(existing.id)},
         )
     use_llm = await billing.is_llm_enabled(tenant_id)
+
+    if use_llm and await billing.would_exceed_credit_limit(tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "CREDIT_LIMIT_EXCEEDED", "message": "Monthly credit limit reached."},
+        )
+
     if use_llm:
         context_parts = [log.message or ""]
         if log.exception_type:
@@ -274,15 +287,15 @@ async def create_issue_from_log(
                     detail={"code": "LLM_RATE_LIMIT", "message": "AI rate limit exceeded. Please try again in a moment."},
                 ) from e
             raise
-        try:
-            await billing.record_llm_usage(tenant_id)
-        except ValueError as e:
-            if str(e) == "USAGE_LIMIT_EXCEEDED":
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={"code": "USAGE_LIMIT_EXCEEDED"},
-                ) from e
-            raise
+        usage = run_result.usage()
+        await billing.record_llm_usage(
+            tenant_id=tenant_id,
+            feature_name=LlmFeature.ISSUE_SUGGEST,
+            model_name=run_result.response.model_name or "gpt-4o-mini",
+            input_tokens=usage.input_tokens or 0 if usage else 0,
+            output_tokens=usage.output_tokens or 0 if usage else 0,
+            project_id=int(log.project_id),
+        )
     else:
         title = (log.message or "Issue")[:200]
         severity = log_level_to_issue_severity(log.level)
@@ -544,6 +557,13 @@ async def enrich_issue(
         raise
 
     use_llm = await billing.is_llm_enabled(tenant_id)
+
+    if use_llm and await billing.would_exceed_credit_limit(tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "CREDIT_LIMIT_EXCEEDED", "message": "Monthly credit limit reached."},
+        )
+
     if use_llm:
         try:
             from logs_sentinel.infrastructure.agents.issue_enrichment import (
@@ -554,7 +574,7 @@ async def enrich_issue(
             agent = create_issue_enrichment_agent()
             run_result = await agent.run(events_to_prompt(events))
             out = run_result.output
-            model_name = "gpt-4o-mini"
+            model_name = run_result.response.model_name or "gpt-4o-mini"
             summary = (out.summary or "").strip()
             suspected_cause = (out.suspected_cause or "").strip()
             checklist_json = list(out.checklist or [])
@@ -585,15 +605,14 @@ async def enrich_issue(
     )
 
     if use_llm:
-        try:
-            await billing.record_llm_usage(tenant_id)
-        except ValueError as e:
-            if str(e) == "USAGE_LIMIT_EXCEEDED":
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={"code": "USAGE_LIMIT_EXCEEDED"},
-                ) from e
-            raise
+        enrich_usage = run_result.usage()
+        await billing.record_llm_usage(
+            tenant_id=tenant_id,
+            feature_name=LlmFeature.ISSUE_ENRICH,
+            model_name=run_result.response.model_name or "gpt-4o-mini",
+            input_tokens=enrich_usage.input_tokens or 0 if enrich_usage else 0,
+            output_tokens=enrich_usage.output_tokens or 0 if enrich_usage else 0,
+        )
 
     return EnrichIssueResponse(
         enrichment=IssueEnrichmentResponse(

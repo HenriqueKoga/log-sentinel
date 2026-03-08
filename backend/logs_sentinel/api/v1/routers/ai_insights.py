@@ -18,6 +18,7 @@ from logs_sentinel.api.v1.schemas.ai_insights import (
 from logs_sentinel.application.services.ai_insights_service import FixSuggestionsService
 from logs_sentinel.application.services.billing_service import BillingService
 from logs_sentinel.domains.ai.entities import FixSuggestionResult
+from logs_sentinel.domains.billing.entities import LlmFeature
 from logs_sentinel.domains.identity.entities import TenantId
 from logs_sentinel.infrastructure.llm.null_client import NullLLMClient
 from logs_sentinel.utils.lang import resolved_lang
@@ -110,6 +111,12 @@ async def analyze_fix_suggestion(
 
     use_llm = await billing.is_llm_enabled(TenantId(tenant_id))
 
+    if use_llm and await billing.would_exceed_credit_limit(TenantId(tenant_id)):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "CREDIT_LIMIT_EXCEEDED", "message": "Monthly credit limit reached."},
+        )
+
     if use_llm:
         from logs_sentinel.infrastructure.agents.suggest_fix import create_suggest_fix_agent
 
@@ -148,15 +155,15 @@ async def analyze_fix_suggestion(
     )
 
     if use_llm:
-        try:
-            await billing.record_llm_usage(TenantId(tenant_id))
-        except ValueError as e:
-            if str(e) == "USAGE_LIMIT_EXCEEDED":
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={"code": "USAGE_LIMIT_EXCEEDED"},
-                ) from e
-            raise
+        fix_usage = result.usage()
+        await billing.record_llm_usage(
+            tenant_id=TenantId(tenant_id),
+            feature_name=LlmFeature.FIX_SUGGESTION,
+            model_name=result.response.model_name or "gpt-4o-mini",
+            input_tokens=fix_usage.input_tokens or 0 if fix_usage else 0,
+            output_tokens=fix_usage.output_tokens or 0 if fix_usage else 0,
+            project_id=body.project_id,
+        )
 
     return FixSuggestionOut(
         fingerprint=suggestion.fingerprint,

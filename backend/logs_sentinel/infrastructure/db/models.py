@@ -231,6 +231,7 @@ class TenantPlanModel(Base):
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     enable_llm_enrichment: Mapped[bool] = mapped_column(nullable=False, default=False)
+    monthly_credits_limit: Mapped[float] = mapped_column(Float, nullable=False, default=1000.0)
 
 
 class UsageCounterModel(Base):
@@ -245,7 +246,6 @@ class UsageCounterModel(Base):
     )
     events_ingested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     llm_enrichments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    credits_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         UniqueConstraint(
@@ -255,6 +255,66 @@ class UsageCounterModel(Base):
             name="uq_usage_counter_tenant_period",
         ),
     )
+
+
+class LlmModelCatalogModel(Base):
+    """Catalogue of available LLM models with pricing."""
+
+    __tablename__ = "llm_models"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    input_token_price: Mapped[float] = mapped_column(Float, nullable=False)
+    output_token_price: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="USD")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_usage_tracking: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "model_name", name="uq_llm_model_provider_name"),
+    )
+
+
+class LlmUsageModel(Base):
+    """Raw LLM usage record per call — no derived values persisted."""
+
+    __tablename__ = "llm_usages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_model_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("llm_models.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    feature_name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    correlation_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CreditPolicyModel(Base):
+    """Conversion policy: how much real cost translates to billing credits."""
+
+    __tablename__ = "credit_policies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="USD")
+    credits_per_currency_unit: Mapped[float] = mapped_column(Float, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class FixSuggestionAnalysisModel(Base):

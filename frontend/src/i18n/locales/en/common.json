@@ -28,6 +28,8 @@
     "recentIssues": "Recent issues",
     "recentIssuesHint": "Top 50 of current listing",
     "usage": "Usage",
+    "credits": "Credits",
+    "ofLimit": "of limit",
     "viewBilling": "View billing",
     "alerts": "Alerts",
     "alertsHint": "Active alerts in all projects",
